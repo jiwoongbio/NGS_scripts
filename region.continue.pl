@@ -1,3 +1,5 @@
+#!/bin/env perl
+# Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;
 local $SIG{__WARN__} = sub { die $_[0] };

@@ -4,7 +4,7 @@ use strict;
 use warnings;
 local $SIG{__WARN__} = sub { die $_[0] };
 
-use List::Util qw(sum max);
+use List::Util qw(sum max min);
 use Getopt::Long qw(:config no_ignore_case);
 
 GetOptions(
@@ -86,8 +86,9 @@ sub getToken {
 }
 
 sub unique {
-	my @sorted = sort @_;
-	return @sorted[0, grep {$sorted[$_ - 1] ne $sorted[$_]} 1 .. $#sorted];
+	my @sortedTokenList = sort @_;
+	@sortedTokenList = @sortedTokenList[0, grep {$sortedTokenList[$_ - 1] ne $sortedTokenList[$_]} 1 .. $#sortedTokenList];
+	return @sortedTokenList;
 }
 
 sub mean {

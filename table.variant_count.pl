@@ -9,6 +9,7 @@ use Getopt::Long qw(:config no_ignore_case);
 
 GetOptions(
 	's=s' => \(my $samples = ''),
+	'h' => \(my $header = ''),
 );
 
 my %columnExpressionHash = ();
@@ -42,46 +43,52 @@ my @suffixNameList = (
 my @tandemRepeatSuffixList = ('remocon.mutect.tandemRepeat.count.txt', 'remocon.tandemRepeat.count.txt', 'mutect.tandemRepeat.count.txt', 'tandemRepeat.count.txt');
 
 if(my @variantFileList = @ARGV) {
-my @sampleList = ();
-	if($samples eq '') {
-		my %sampleHash = ();
-		foreach my $variantFile (@variantFileList) {
-			open(my $reader, $variantFile);
-			while(my $line = <$reader>) {
-				chomp($line);
-				next if($line =~ /^#/);
-				my ($chromosome, $position, $refBase, $altBase, $sample, $genotype, $gene, $region, $mutation) = split(/\t/, $line, -1);
-				$sampleHash{$sample} = 1;
-			}
-			close($reader);
+	my $pid = open2(my $reader, my $writer, "sort -t '\t' -k1,1 -k2,2 -k3,6 | uniq | cut -f1,2 | uniq -c");
+	foreach my $variantFile (@variantFileList) {
+		my %columnIndexHash = ();
+		open(my $reader, $variantFile);
+		if($header ne '') {
+			chomp(my $line = <$reader>);
+			$line =~ s/^#//;
+			my @columnList = split(/\t/, $line, -1);
+			%columnIndexHash = getColumnIndexHash(@columnList);
+		} else {
+			my @columnList = ('chromosome', 'position', 'refBase', 'altBase', 'sample', 'genotype', 'gene', 'region', 'mutation');
+			%columnIndexHash = getColumnIndexHash(@columnList);
 		}
-		@sampleList = sort keys %sampleHash;
+		while(my $line = <$reader>) {
+			chomp($line);
+			next if($line =~ /^#/);
+			my @tokenList = split(/\t/, $line, -1);
+			my ($chromosome, $position, $refBase, $altBase, $sample, $genotype, $gene, $region, $mutation) = @tokenList[@columnIndexHash{'chromosome', 'position', 'refBase', 'altBase', 'sample', 'genotype', 'gene', 'region', 'mutation'}];
+			foreach my $column (@columnList) {
+				my $expression = $columnExpressionHash{$column};
+				print $writer join("\t", $sample, $column, $chromosome, $position, $refBase, $altBase), "\n" if(eval($expression));
+			}
+		}
+		close($reader);
+	}
+	close($writer);
+	my %sampleColumnCountHash = ();
+	while(my $line = <$reader>) {
+		chomp($line);
+		if($line =~ /^ *([0-9]+) (.*)$/) {
+			my $count = $1;
+			my ($sample, $column) = split(/\t/, $2, -1);
+			$sampleColumnCountHash{$sample}->{$column} = $count;
+		}
+	}
+	close($reader);
+	waitpid($pid, 0);
+	my @sampleList = ();
+	if($samples ne '') {
+		@sampleList = split(/,/, $samples, -1);
 	} else {
-		@sampleList = split(/,/, $samples);
+		@sampleList = sort keys %sampleColumnCountHash;
 	}
 	print join("\t", 'sample', @sampleList), "\n";
 	foreach my $column (@columnList) {
-		my $expression = $columnExpressionHash{$column};
-		my $pid = open2(my $reader, my $writer, "sort -t '\t' -k1,1 -k2,5 | uniq | cut -f1 | uniq -c");
-		foreach my $variantFile (@variantFileList) {
-			open(my $reader, $variantFile);
-			while(my $line = <$reader>) {
-				chomp($line);
-				next if($line =~ /^#/);
-				my ($chromosome, $position, $refBase, $altBase, $sample, $genotype, $gene, $region, $mutation) = split(/\t/, $line, -1);
-				print $writer join("\t", $sample, $chromosome, $position, $refBase, $altBase), "\n" if(eval($expression));
-			}
-			close($reader);
-		}
-		close($writer);
-		my %sampleCountHash = ();
-		while(my $line = <$reader>) {
-			chomp($line);
-			$sampleCountHash{$2} = $1 if($line =~ /^ *([0-9]+) (.*)$/);
-		}
-		close($reader);
-		waitpid($pid, 0);
-		print join("\t", $column, map {defined($_) ? $_ : 0} @sampleCountHash{@sampleList}), "\n";
+		print join("\t", $column, map {defined($_) ? $_ : 0} map {$_->{$column}} @sampleColumnCountHash{@sampleList}), "\n";
 	}
 } elsif(-s 'sample.txt') {
 	chomp(my @sampleList = `cat sample.txt`);
@@ -138,6 +145,67 @@ my @sampleList = ();
 		}
 		print join("\t", @tokenList), "\n";
 	}
+}
+
+sub getColumnIndexHash {
+	my (@columnList) = @_;
+	my %columnIndexHash = ();
+	@columnIndexHash{@columnList} = 0 .. $#columnList;
+	foreach my $column ('chromosome', 'Chromosome', 'CHROM', 'chr') {
+		if(defined(my $index = $columnIndexHash{$column})) {
+			$columnIndexHash{'chromosome'} = $index;
+			last;
+		}
+	}
+	foreach my $column ('position', 'Position', 'POS') {
+		if(defined(my $index = $columnIndexHash{$column})) {
+			$columnIndexHash{'position'} = $index;
+			last;
+		}
+	}
+	foreach my $column ('refBase', 'haplotypeReference', 'Reference base', 'REF') {
+		if(defined(my $index = $columnIndexHash{$column})) {
+			$columnIndexHash{'refBase'} = $index;
+			last;
+		}
+	}
+	foreach my $column ('altBase', 'haplotypeAlternate', 'Alternate base', 'ALT') {
+		if(defined(my $index = $columnIndexHash{$column})) {
+			$columnIndexHash{'altBase'} = $index;
+			last;
+		}
+	}
+	foreach my $column ('sample', 'Sample') {
+		if(defined(my $index = $columnIndexHash{$column})) {
+			$columnIndexHash{'sample'} = $index;
+			last;
+		}
+	}
+	foreach my $column ('genotype', 'Genotype') {
+		if(defined(my $index = $columnIndexHash{$column})) {
+			$columnIndexHash{'genotype'} = $index;
+			last;
+		}
+	}
+	foreach my $column ('gene', 'Gene name') {
+		if(defined(my $index = $columnIndexHash{$column})) {
+			$columnIndexHash{'gene'} = $index;
+			last;
+		}
+	}
+	foreach my $column ('region', 'Region type') {
+		if(defined(my $index = $columnIndexHash{$column})) {
+			$columnIndexHash{'region'} = $index;
+			last;
+		}
+	}
+	foreach my $column ('mutation', 'Mutation class') {
+		if(defined(my $index = $columnIndexHash{$column})) {
+			$columnIndexHash{'mutation'} = $index;
+			last;
+		}
+	}
+	return %columnIndexHash;
 }
 
 sub getHaplotypeList {

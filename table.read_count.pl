@@ -10,7 +10,8 @@ my $threads = 8;
 my @columnList = ();
 my %columnHash = ();
 my %columnSampleCountHash = ();
-chomp(my @sampleList = `cat sample.txt`);
+my (@sampleList) = @ARGV;
+chomp(@sampleList = `cat sample.txt`) if(scalar(@sampleList) == 0);
 foreach my $sample (@sampleList) {
 	{
 		addColumn('Sample');

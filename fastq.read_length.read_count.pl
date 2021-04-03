@@ -4,6 +4,20 @@ use strict;
 use warnings;
 local $SIG{__WARN__} = sub { die $_[0] };
 
+use Getopt::Long qw(:config no_ignore_case);
+
+GetOptions(
+	'h' => \(my $help = ''),
+);
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage:   fastq.read_length.read_count.pl [options] input.fastq [...]
+
+Options: -h       display this help message
+
+EOF
+}
 my (@fastqFileList) = @ARGV;
 foreach my $fastqFile (@fastqFileList) {
 	my %readLengthCountHash = ();
