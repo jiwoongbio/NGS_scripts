@@ -13,8 +13,9 @@ GetOptions(
 	'f=s' => \(my $function = 'join'),
 	'd=s' => \(my $delimiter = ','),
 );
-my ($tableFile, $indexes, $keyIndex, $valueIndex, @keyList) = @ARGV;
+my ($tableFile, $indexes, $keyIndex, $valueIndex, @keysList) = @ARGV;
 my %indexHash = map {$_ => 1} (my @indexList = eval($indexes));
+my @keyList = map {split(/,/, $_)} @keysList;
 if(defined($valueIndex) && scalar(@keyList) == 0) {
 	my %keyHash = ();
 	open(my $reader, $tableFile);

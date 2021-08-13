@@ -12,12 +12,10 @@ GetOptions(
 	'o' => \(my $once = ''),
 );
 my ($tableFile, $keyIndexes, @additionTableFileKeyValueIndexesList) = @ARGV;
-die "$tableFile is not readable." unless($tableFile eq '-' || $tableFile =~ /\|\s*$/ || -r $tableFile);
-die unless(scalar(@additionTableFileKeyValueIndexesList) % 3 == 0);
+exit unless(scalar(@additionTableFileKeyValueIndexesList) % 3 == 0);
 my (@additionListHashList, @spacerList) = ();
 for(my $index = 0; $index < scalar(@additionTableFileKeyValueIndexesList); $index += 3) {
 	my ($additionTableFile, $additionKeyIndexes, $additionValueIndexes) = @additionTableFileKeyValueIndexesList[$index .. $index + 2];
-	die "$additionTableFile is not readable." unless($additionTableFile eq '-' || $additionTableFile =~ /\|\s*$/ || -r $additionTableFile);
 	my @additionKeyIndexList = eval($additionKeyIndexes);
 	my @additionValueIndexList = eval($additionValueIndexes);
 	my %additionListHash = ();
