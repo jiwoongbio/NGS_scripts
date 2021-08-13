@@ -10,6 +10,8 @@ GetOptions(
 	'H' => \(my $header = ''),
 );
 my ($geneCountFile) = @ARGV;
+die "Gene count file is not defined.\n" unless(defined($geneCountFile));
+die "$geneCountFile is not readable.\n" unless(-r $geneCountFile);
 my @geneCountListList = ();
 my @totalCountList = ();
 {

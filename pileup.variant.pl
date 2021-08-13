@@ -10,6 +10,7 @@ use Getopt::Long qw(:config no_ignore_case);
 
 GetOptions(
 	'd=i' => \(my $minimumReadBaseDepth = 0),
+	'D=i' => \(my $minimumSampleReadDepth = 0),
 );
 my ($pileupFile, $referenceFastaFile) = @ARGV;
 my $db = Bio::DB::Fasta->new($referenceFastaFile);
@@ -32,6 +33,7 @@ while(my $line = <$reader>) {
 			$readBaseDepthListHash{$readBase}->[($index / 3) - 1] += 1;
 		}
 	}
+	next if(grep {$_ < $minimumSampleReadDepth} @readDepthList);
 	foreach my $readBase (grep {$_ ne $refBase && $_ ne '>' && $_ ne '<' && $_ ne '*'} sort keys %readBaseDepthListHash) {
 		if(sum(0, grep {defined} @{$readBaseDepthListHash{$readBase}}) >= $minimumReadBaseDepth) {
 			printVariant($chromosome, $position, $refBase, $readBase, map {defined($_) ? $_ : 0} map {($readDepthList[$_], $readBaseDepthListHash{$readBase}->[$_])} 0 .. $#readDepthList);

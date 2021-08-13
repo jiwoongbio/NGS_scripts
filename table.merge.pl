@@ -4,7 +4,7 @@ use strict;
 use warnings;
 local $SIG{__WARN__} = sub { die $_[0] };
 
-use List::Util qw(sum max);
+use List::Util qw(sum max min);
 use Getopt::Long qw(:config no_ignore_case);
 
 GetOptions(
@@ -12,10 +12,10 @@ GetOptions(
 	'f=s' => \(my $function = 'join'),
 	'd=s' => \(my $delimiter = ','),
 );
-my (@regionFileList) = @ARGV;
+my (@fileList) = @ARGV;
 my @readerList = ();
-foreach my $regionFile (@regionFileList) {
-	open(my $reader, $regionFile);
+foreach my $file (@fileList) {
+	open(my $reader, $file);
 	push(@readerList, $reader);
 }
 while(my @tokenListList = getTokenListList()) {
@@ -25,7 +25,7 @@ while(my @tokenListList = getTokenListList()) {
 	}
 	print join("\t", @tokenList), "\n";
 }
-close($_) foreach(@regionFileList);
+close($_) foreach(@fileList);
 
 sub getTokenListList {
 	my @tokenListList = ();
