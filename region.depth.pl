@@ -12,6 +12,7 @@ my $temporaryDirectory = $ENV{'TMPDIR'};
 $temporaryDirectory = '/tmp' unless($temporaryDirectory);
 my @coverageDepthList = ();
 GetOptions(
+	'h' => \(my $help = ''),
 	't=s' => \$temporaryDirectory,
 	'p=i' => \(my $threads = 1),
 	'numberPerThread=i' => \(my $numberPerThread = 1000),
@@ -23,6 +24,23 @@ GetOptions(
 	'c=i' => \@coverageDepthList,
 	'doNotUseSamModule' => \(my $doNotUseSamModule = ''),
 );
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage:   perl region.depth.pl [options] region.txt sample.sorted.bam [...] > region.depth.txt
+
+Options: -h       display this help message
+         -t DIR   directory for temporary files [\$TMPDIR or /tmp]
+         -p INT   number of threads [$threads]
+         -q INT   minimum mapping quality [$minimumMappingQuality]
+         -f INT   include flag [$includeFlag]
+         -F INT   exclude flag [$excludeFlag]
+         -S STR   stranded, "f" or "r"
+         -T       print total depth
+         -c INT   depth for region coverage
+
+EOF
+}
 {
 	my $parentPid = $$;
 	my %pidHash = ();
@@ -81,7 +99,7 @@ if($samModule) {
 			unless(-r $baiFile) {
 				system("samtools index $bamFile");
 			} else {
-				system("ln -s $baiFile $bamFile.bai");
+				system("ln --relative --symbolic $baiFile $bamFile.bai");
 			}
 		}
 	}

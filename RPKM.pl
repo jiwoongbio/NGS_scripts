@@ -8,10 +8,26 @@ use IPC::Open2;
 use Getopt::Long qw(:config no_ignore_case);
 
 GetOptions(
+	'h' => \(my $help = ''),
 	'H' => \(my $header = ''),
 	'g=s' => \(my $geneAttribute = 'gene_id'),
 );
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage:   perl RPKM.pl [options] gene.gtf gene.count.txt > RPKM.txt
+
+Options: -h       display this help message
+         -H       with header
+         -g STR   gene attribute
+
+EOF
+}
 my ($gtfFile, $geneCountFile) = @ARGV;
+die "GTF file is not defined.\n" unless(defined($gtfFile));
+die "$gtfFile is not readable.\n" unless(-r $gtfFile);
+die "Gene count file is not defined.\n" unless(defined($geneCountFile));
+die "$geneCountFile is not readable.\n" unless(-r $geneCountFile);
 my %geneLengthHash = ();
 {
 	my @columnList = ($geneAttribute, 'chromosome', 'start', 'end');

@@ -8,9 +8,21 @@ use IPC::Open2;
 use Getopt::Long qw(:config no_ignore_case);
 
 GetOptions(
+	'h' => \(my $help = ''),
 	'g=s' => \(my $geneAttribute = 'gene_id'),
 	't=s' => \(my $transcriptAttribute = 'transcript_id'),
 );
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage:   perl transcriptional_readthrough_region.pl [options] gene.gtf reference.fasta maximum_length > transcriptional_readthrough_region.txt
+
+Options: -h       display this help message
+         -g STR   gene attribute
+         -t STR   transcript attribute
+
+EOF
+}
 my ($gtfFile, $referenceFastaFile, $maximumLength) = @ARGV;
 my %chromosomeSequenceLengthHash = ();
 {

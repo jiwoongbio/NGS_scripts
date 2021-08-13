@@ -11,6 +11,7 @@ chomp(my $hostname = `hostname`);
 my $temporaryDirectory = $ENV{'TMPDIR'};
 $temporaryDirectory = '/tmp' unless($temporaryDirectory);
 GetOptions(
+	'h' => \(my $help = ''),
 	't=s' => \$temporaryDirectory,
 	'p=i' => \(my $threads = 1),
 	'numberPerThread=i' => \(my $numberPerThread = 1000),
@@ -19,8 +20,25 @@ GetOptions(
 	'F=i' => \(my $excludeFlag = 0),
 	'S=s' => \(my $stranded = ''),
 	'T' => \(my $printTotal = ''),
-	'f' => \(my $fragment = ''),
+	'c' => \(my $countFragment = ''),
 );
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage:   perl region.read_count.pl [options] region.txt sample.sorted.bam [...] > region.read_count.txt
+
+Options: -h       display this help message
+         -t DIR   directory for temporary files [\$TMPDIR or /tmp]
+         -p INT   number of threads [$threads]
+         -q INT   minimum mapping quality [$minimumMappingQuality]
+         -f INT   include flag [$includeFlag]
+         -F INT   exclude flag [$excludeFlag]
+         -S STR   stranded, "f" or "r"
+         -T       print total read count
+         -c       count fragment
+
+EOF
+}
 {
 	my $parentPid = $$;
 	my %pidHash = ();
@@ -145,7 +163,7 @@ sub printRead {
 					if((($stranded eq 'f' || $stranded eq 'forward') && $strand eq '-') || (($stranded eq 'r' || $stranded eq 'reverse') && $strand eq '+')) {
 						next unless(grep {($alignment->flag & 253) == $_} 81, 161, 16);
 					}
-					my $readName = $fragment ? $alignment->query->name : join('/', $alignment->query->name, ($alignment->flag & 192) / 64);
+					my $readName = $countFragment ? $alignment->query->name : join('/', $alignment->query->name, ($alignment->flag & 192) / 64);
 					if($printTotal) {
 						forkPrint(join("\t", $readName), "\n");
 					} else {
@@ -167,7 +185,7 @@ sub printRead {
 					if((($stranded eq 'f' || $stranded eq 'forward') && $strand eq '-') || (($stranded eq 'r' || $stranded eq 'reverse') && $strand eq '+')) {
 						next unless(grep {($tokenHash{'flag'} & 253) == $_} 81, 161, 16);
 					}
-					my $readName = $fragment ? $tokenHash{'qname'} : join('/', $tokenHash{'qname'}, ($tokenHash{'flag'} & 192) / 64);
+					my $readName = $countFragment ? $tokenHash{'qname'} : join('/', $tokenHash{'qname'}, ($tokenHash{'flag'} & 192) / 64);
 					if($printTotal) {
 						forkPrint(join("\t", $readName), "\n");
 					} else {
