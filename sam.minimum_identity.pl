@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 # Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;
@@ -35,7 +35,13 @@ while(my $line = <$reader>) {
 		my %tokenHash = ();
 		(@tokenHash{'qname', 'flag', 'rname', 'pos', 'mapq', 'cigar', 'rnext', 'pnext', 'tlen', 'seq', 'qual'}, my @tagTypeValueList) = split(/\t/, $line);
 		$tokenHash{"$_->[0]:$_->[1]"} = $_->[2] foreach(map {[split(/:/, $_, 3)]} @tagTypeValueList);
-		my $identity = sum(0, ($tokenHash{'MD:Z'} =~ /([0-9]+)/g)) / min(sum(length($tokenHash{'seq'}), ($tokenHash{'cigar'} =~ /([0-9]+)D/g)), sum(min(sum($tokenHash{'pos'}, ($tokenHash{'cigar'} =~ /([0-9]+)[MDN]/g)) - 1, $sequenceLengthHash{$tokenHash{'rname'}} - $tokenHash{'pos'} + 1), ($tokenHash{'cigar'} =~ /([0-9]+)I/g)));
+		next if($tokenHash{'flag'} & 4);
+		my $identity = sum(0, ($tokenHash{'MD:Z'} =~ /([0-9]+)/g)) / min(
+			sum(length($tokenHash{'seq'}), ($tokenHash{'cigar'} =~ /([0-9]+)D/g)), # reference - alignment - reference
+			sum(($tokenHash{'pos'} - 1), ($tokenHash{'cigar'} =~ /([0-9]+)[MDN]/g), ($tokenHash{'cigar'} =~ /([0-9]+)S$/), ($tokenHash{'cigar'} =~ /([0-9]+)I/g)), # read - alignment - reference
+			sum($sequenceLengthHash{$tokenHash{'rname'}} - ($tokenHash{'pos'} - 1), ($tokenHash{'cigar'} =~ /^([0-9]+)S/), ($tokenHash{'cigar'} =~ /([0-9]+)I/g)), # reference - alignment - read
+			sum($sequenceLengthHash{$tokenHash{'rname'}}, ($tokenHash{'cigar'} =~ /([0-9]+)I/g)), # read - alignment - read
+		);
 		print "$line\n" if($identity >= $minimumIdentity);
 	}
 }

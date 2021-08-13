@@ -12,6 +12,10 @@ GetOptions(
 	'g=s' => \(my $geneAttribute = 'gene_id'),
 );
 my ($gtfFile, $geneCountFile) = @ARGV;
+die "GTF file is not defined.\n" unless(defined($gtfFile));
+die "$gtfFile is not readable.\n" unless(-r $gtfFile);
+die "Gene count file is not defined.\n" unless(defined($geneCountFile));
+die "$geneCountFile is not readable.\n" unless(-r $geneCountFile);
 my %geneLengthHash = ();
 {
 	my @columnList = ($geneAttribute, 'chromosome', 'start', 'end');

@@ -9,15 +9,17 @@ library(ggtree)
 tree <- nj(as.dist(table))
 
 if(args[2] != "") {
-	table <- read.table(args[2], header = FALSE, sep = "\t")
+	table <- read.table(args[2], header = FALSE, sep = "\t", stringsAsFactors = FALSE, comment.char = "")
 	colnames(table) <- c("sample", "name", "color")
 } else {
 	table <- data.frame(sample = tree$tip.label, name = tree$tip.label, color = "black")
 }
-table$color <- factor(table$color)
+scale_color_manual_values <- unique(table$color)
+names(scale_color_manual_values) <- scale_color_manual_values
+scale_color_manual_values[scale_color_manual_values == ""] <- NA
 
 p <- ggtree(tree) + theme_tree2()
-p <- p %<+% table + geom_tiplab(aes(label = name, color = color), show.legend = FALSE) + scale_color_manual(values = levels(table$color))
+p <- p %<+% table + geom_tiplab(aes(label = name, color = color), show.legend = FALSE) + scale_color_manual(values = scale_color_manual_values)
 
 if(length(args) == 5) {
 	library(ggplot2)

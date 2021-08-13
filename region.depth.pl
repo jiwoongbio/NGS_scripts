@@ -81,7 +81,7 @@ if($samModule) {
 			unless(-r $baiFile) {
 				system("samtools index $bamFile");
 			} else {
-				system("ln -s $baiFile $bamFile.bai");
+				system("ln --relative --symbolic $baiFile $bamFile.bai");
 			}
 		}
 	}
