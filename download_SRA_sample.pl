@@ -14,6 +14,7 @@ my $temporaryDirectory = $ENV{'TMPDIR'};
 $temporaryDirectory = '/tmp' unless($temporaryDirectory);
 GetOptions(
 	'h' => \(my $help = ''),
+	't=s' => \$temporaryDirectory,
 	'p=i' => \(my $threads = 1),
 	'w=i' => \(my $waitMultiplier = 1),
 	'e' => \(my $termEncoded = ''),
