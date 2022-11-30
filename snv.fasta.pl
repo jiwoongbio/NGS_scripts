@@ -7,19 +7,39 @@ local $SIG{__WARN__} = sub { die $_[0] };
 use Getopt::Long qw(:config no_ignore_case);
 
 GetOptions(
+	'h' => \(my $help = ''),
 	'l=i' => \(my $lineLength = 80),
 	'b' => \(my $binary = ''),
 	'r' => \(my $includeReference = ''),
+	'a=s' => \(my $ancestorSample = ''),
 );
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage:   perl snv.table.pl [options] cohort.vcf
+
+Options: -h       display this help message
+         -l INT   line length [$lineLength]
+         -b       binary
+         -r       include reference
+         -a       ancestor sample
+
+EOF
+}
 my ($vcfFile) = @ARGV;
 my @sampleList = ();
 my @sequenceList = ();
+my $ancestorSampleIndex = '';
 {
 	open(my $reader, ($vcfFile =~ /\.gz$/ ? "gzip -dc $vcfFile |" : $vcfFile));
 	while(my $line = <$reader>) {
 		chomp($line);
 		if($line =~ s/^#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO//) {
 			@sampleList = split(/\t/, $line, -1) if($line =~ s/^\tFORMAT\t//);
+			if($ancestorSample ne '') {
+				my %sampleIndexHash = map {$sampleList[$_] => $_} 0 .. $#sampleList;
+				$ancestorSampleIndex = $sampleIndexHash{$ancestorSample};
+			}
 			next;
 		}
 		next if($line =~ /^#/);
@@ -47,6 +67,7 @@ my @sequenceList = ();
 				next if(grep {scalar(keys %$_) == 0} @alleleHashList);
 				foreach my $allele (unique(grep {$_ != 0} map {keys %$_} @alleleHashList)) {
 					my @binaryList = map {$alleleHashList[$_]->{$allele} ? 1 : 0} 0 .. $#genotypeList;
+					next if($ancestorSampleIndex ne '' && $binaryList[$ancestorSampleIndex] != 0);
 					@binaryList = (@binaryList, 0) if($includeReference);
 					next if(scalar(unique(@binaryList)) == 1);
 					$sequenceList[$_] .= $binaryList[$_] foreach(0 .. $#binaryList);
@@ -73,6 +94,6 @@ sub printSequence {
 
 sub unique {
 	my @sortedTokenList = sort @_;
-	@sortedTokenList = @sortedTokenList[0, grep {$sortedTokenList[$_ - 1] ne $sortedTokenList[$_]} 1 .. $#sortedTokenList];
+	@sortedTokenList = @sortedTokenList[0, grep {$sortedTokenList[$_ - 1] ne $sortedTokenList[$_]} 1 .. $#sortedTokenList] if(@sortedTokenList);
 	return @sortedTokenList;
 }

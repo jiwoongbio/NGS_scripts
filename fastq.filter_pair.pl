@@ -5,7 +5,23 @@ use warnings;
 local $SIG{__WARN__} = sub { die $_[0] };
 
 use IPC::Open2;
+use Getopt::Long qw(:config no_ignore_case);
 
+chomp(my $file = `readlink -f $0`);
+my $directory = $1 if($file =~ s/(^.*\/)//);
+
+GetOptions(
+	'h' => \(my $help = ''),
+);
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage:   $file [options] input.1.fastq.gz input.2.fastq.gz output.1.fastq.gz output.2.fastq.gz
+
+Options: -h       display this help message
+
+EOF
+}
 my ($inputFastqFile1, $inputFastqFile2, $outputFastqFile1, $outputFastqFile2) = @ARGV;
 {
 	my $pid = open2(my $reader, my $writer, "LC_ALL=C sort -t '\t' -k1,1 -k2 | uniq");

@@ -11,7 +11,7 @@ GetOptions(
 	'g=i' => \(my $gap = 0),
 );
 my ($regionFile) = @ARGV;
-open(my $reader, $sorted ? $regionFile : "sort --field-separator=\$'\\t' -k4 -k1,1 -k2,2n -k3,3n $regionFile |");
+open(my $reader, $sorted ? $regionFile : "sort -t '\t' -k4 -k1,1 -k2,2n -k3,3n $regionFile |");
 my @previousTokenListList = ();
 while(my $line = <$reader>) {
 	chomp($line);

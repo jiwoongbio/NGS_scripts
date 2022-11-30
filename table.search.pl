@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 # Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;
@@ -10,6 +10,7 @@ GetOptions(
 	'v' => \(my $invertMatch = ''),
 	'h' => \(my $header = ''),
 	'i' => \(my $ignoreCase = ''),
+	'c' => \(my $includeCommentLine = ''),
 );
 my ($tableFile1, $indexes1, $tableFile2, $indexes2) = @ARGV;
 my @indexList1 = eval($indexes1);
@@ -34,6 +35,10 @@ my %searchHash = ();
 	}
 	while(my $line = <$reader>) {
 		chomp($line);
+		if($includeCommentLine && $line =~ /^#/) {
+			print "$line\n";
+			next;
+		}
 		my @tokenList = $line eq '' ? ('') : split(/\t/, $line, -1);
 		push(@tokenList, '') if(scalar(@tokenList) == 0);
 		my $search = join("\t", @tokenList[@indexList2]);

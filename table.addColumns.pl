@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 # Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;

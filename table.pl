@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 # Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;
@@ -43,11 +43,15 @@ foreach my $index (0 .. $#columnFilesList) {
 		while(my $line = <$reader>) {
 			chomp($line);
 			my @tokenList = split(/\t/, $line, -1);
-			my $name = join(',', @tokenList[@nameColumnIndexList]);
+			my $name = join("\t", @tokenList[@nameColumnIndexList]);
 			if($nameColumnIndexes eq $valueColumnIndexes) {
 				$nameValueListHash{$name}->[$index] = 1;
 			} elsif(scalar(@valueColumnIndexList) == 1) {
-				$nameValueListHash{$name}->[$index] += $tokenList[$valueColumnIndexList[0]];
+				if(defined($nameValueListHash{$name}->[$index])) {
+					$nameValueListHash{$name}->[$index] += $tokenList[$valueColumnIndexList[0]];
+				} else {
+					$nameValueListHash{$name}->[$index] = $tokenList[$valueColumnIndexList[0]];
+				}
 			} else {
 				$nameValueListHash{$name}->[$index] = join(',', @tokenList[@valueColumnIndexList]);
 			}
@@ -56,7 +60,7 @@ foreach my $index (0 .. $#columnFilesList) {
 	}
 }
 
-print join("\t", '', map {$_->[0]} @columnFilesList), "\n";
+print join("\t", ('') x scalar(@nameColumnIndexList), map {$_->[0]} @columnFilesList), "\n";
 foreach my $name (sort keys %nameValueListHash) {
 	print join("\t", $name, map {defined($_) ? $_ : $defaultValue} @{$nameValueListHash{$name}}[0 .. $#columnFilesList]), "\n";
 }

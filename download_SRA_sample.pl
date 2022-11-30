@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 # Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;
@@ -9,6 +9,9 @@ use URI::Escape;
 use XML::LibXML;
 use Getopt::Long qw(:config no_ignore_case);
 
+chomp(my $file = `readlink -f $0`);
+my $directory = $1 if($file =~ s/(^.*\/)//);
+
 chomp(my $hostname = `hostname`);
 my $temporaryDirectory = $ENV{'TMPDIR'};
 $temporaryDirectory = '/tmp' unless($temporaryDirectory);
@@ -16,7 +19,6 @@ GetOptions(
 	'h' => \(my $help = ''),
 	't=s' => \$temporaryDirectory,
 	'p=i' => \(my $threads = 1),
-	'w=i' => \(my $waitMultiplier = 1),
 	'e' => \(my $termEncoded = ''),
 	'mindate=s' => \(my $mindate = ''),
 	'maxdate=s' => \(my $maxdate = ''),
@@ -26,11 +28,10 @@ GetOptions(
 if($help || scalar(@ARGV) == 0) {
 	die <<EOF;
 
-Usage:   download_SRA_sample.pl [options] SRA_search_term
+Usage:   $file [options] SRA_search_term
 
 Options: -h       display this help message
          -p INT   threads [$threads]
-         -w INT   wait multiplier [$waitMultiplier]
          -e       term is encoded
          -mindate STR   limit search by minimum date
          -maxdate STR   limit search by maximum date
@@ -38,8 +39,9 @@ Options: -h       display this help message
 
 EOF
 }
+my $temporaryPrefix = "$temporaryDirectory/$hostname.$$";
+system("rm -f $temporaryPrefix.*");
 {
-	my $parentPid = $$;
 	my %pidHash = ();
 	my $writer;
 	my $parentWriter;
@@ -51,7 +53,7 @@ EOF
 		if(my $pid = fork()) {
 			$pidHash{$pid} = 1;
 		} else {
-			open($writer, "> $temporaryDirectory/fork.$hostname.$parentPid.$$");
+			open($writer, "> $temporaryPrefix.$$");
 			$subroutine->(@arguments);
 			close($writer);
 			exit(0);
@@ -63,14 +65,14 @@ EOF
 		while(scalar(keys %pidHash) >= $number) {
 			my $pid = wait();
 			if($pidHash{$pid}) {
-				open(my $reader, "$temporaryDirectory/fork.$hostname.$parentPid.$pid");
+				open(my $reader, "$temporaryPrefix.$pid");
 				if(defined($parentWriter)) {
 					print $parentWriter $_ while(<$reader>);
 				} else {
 					print $_ while(<$reader>);
 				}
 				close($reader);
-				system("rm $temporaryDirectory/fork.$hostname.$parentPid.$pid");
+				system("rm $temporaryPrefix.$pid");
 				delete $pidHash{$pid};
 			}
 		}
@@ -86,14 +88,8 @@ EOF
 	}
 }
 my ($term) = @ARGV;
-my $baseURL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
-my $apiKey = $ENV{'NCBI_API_KEY'};
 my $db = 'sra';
-my $retmax = 500;
-my @idList = ();
-if(defined($term) && $term ne '') {
-	@idList = esearch($db, $term);
-}
+my @idList = esearch($db, $term);
 my %layoutSampleRunListHash = ();
 if(@idList) {
 	my $retmax = 100;
@@ -151,12 +147,12 @@ sub download {
 	} else {
 		foreach my $run (@runList) {
 			system("cd $layout/$sample; fastq-dump --gzip --split-files --log-level err $run");
-			system("rm -f ~/ncbi/public/sra/$run");
+			system("rm -f ~/ncbi/public/sra/$run ~/ncbi/public/sra/$run.*");
 		}
 	}
 	if($layout eq 'SINGLE') {
 		my @fileList = map {"$layout/$sample/$_\_1.fastq.gz"} @runList;
-		system("for file in @fileList; do gzip -dc \$file; done | gzip > $layout/$sample/$sample.fastq.gz");
+		system("for file in @fileList; do gzip -dc \$file; done | gzip > $layout/$sample/$sample.1.fastq.gz");
 		system("rm @fileList");
 	}
 	if($layout eq 'PAIRED') {
@@ -173,55 +169,14 @@ sub download {
 
 sub efetch {
 	my ($db, $id, $rettype, $retmode) = @_;
-	my $output = '';
-	while($output eq '') {
-		if(defined($apiKey)) {
-			$output = `wget --no-verbose -O - '$baseURL/efetch.fcgi?db=$db&id=$id&rettype=$rettype&retmode=$retmode&api_key=$apiKey'`;
-			Time::HiRes::usleep(105 * $waitMultiplier);
-		} else {
-			$output = `wget --no-verbose -O - '$baseURL/efetch.fcgi?db=$db&id=$id&rettype=$rettype&retmode=$retmode'`;
-			Time::HiRes::usleep(350 * $waitMultiplier);
-		}
-	}
+	my $output = `efetch.pl $db $id $rettype $retmode`;
 	return $output;
 }
 
 sub esearch {
 	my ($db, $term) = @_;
 	my $encodedTerm = $termEncoded ? $term : uri_escape($term);
-	my @idList = ();
-	for(my $retstart = 0, my ($count, $web, $key) = ($retmax); $retstart < $count;) {
-		my $xmlString = '';
-		unless(defined($web) && defined($key)) {
-			if(defined($apiKey)) {
-				$xmlString = `wget --no-verbose -O - '$baseURL/esearch.fcgi?db=$db&term=$encodedTerm&usehistory=y&retmax=$retmax&retstart=$retstart&mindate=$mindate&maxdate=$maxdate&api_key=$apiKey'`;
-			} else {
-				$xmlString = `wget --no-verbose -O - '$baseURL/esearch.fcgi?db=$db&term=$encodedTerm&usehistory=y&retmax=$retmax&retstart=$retstart&mindate=$mindate&maxdate=$maxdate'`;
-			}
-		} else {
-			if(defined($apiKey)) {
-				$xmlString = `wget --no-verbose -O - '$baseURL/esearch.fcgi?WebEnv=$web&query_key=$key&retmax=$retmax&retstart=$retstart&api_key=$apiKey'`;
-			} else {
-				$xmlString = `wget --no-verbose -O - '$baseURL/esearch.fcgi?WebEnv=$web&query_key=$key&retmax=$retmax&retstart=$retstart'`;
-			}
-		}
-		if($xmlString =~ /<\/eSearchResult>\n?$/) {
-			my $dom = XML::LibXML->load_xml(string => $xmlString);
-			my $root = $dom->documentElement();
-			($count) = map {$_->textContent} getChildNodeList($root, 'Count');
-			unless(defined($web) && defined($key)) {
-				($web) = map {$_->textContent} getChildNodeList($root, 'WebEnv');
-				($key) = map {$_->textContent} getChildNodeList($root, 'QueryKey');
-			}
-			push(@idList, map {$_->textContent} getChildNodeList($root, 'IdList', 'Id'));
-			$retstart += $retmax;
-		}
-		if(defined($apiKey)) {
-			Time::HiRes::usleep(105 * $waitMultiplier);
-		} else {
-			Time::HiRes::usleep(350 * $waitMultiplier);
-		}
-	}
+	chomp(my @idList = `esearch.pl -e -mindate '$mindate' -maxdate '$maxdate' $db '$encodedTerm'`);
 	return @idList;
 }
 

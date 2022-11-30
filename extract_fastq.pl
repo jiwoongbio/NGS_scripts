@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 # Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;
@@ -7,10 +7,23 @@ local $SIG{__WARN__} = sub { die $_[0] };
 use IPC::Open2;
 use Getopt::Long qw(:config no_ignore_case);
 
+chomp(my $file = `readlink -f $0`);
+my $directory = $1 if($file =~ s/(^.*\/)//);
+
 GetOptions(
+	'h' => \(my $help = ''),
 	'v' => \(my $invert = ''),
 );
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
 
+Usage:   $file [options] read_name.txt input.fastq.gz | gzip > extract.fastq.gz
+
+Options: -h       display this help message
+         -v       invert
+
+EOF
+}
 my ($readNameFile, $fastqFile) = @ARGV;
 {
 	my $pid = open2(my $reader, my $writer, "LC_ALL=C sort -t '\t' -k1,1");

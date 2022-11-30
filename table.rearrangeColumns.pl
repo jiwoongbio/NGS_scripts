@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 # Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;
@@ -29,6 +29,9 @@ if(@indexesList) {
 		chomp(my $line = <$reader>);
 		my @tokenList = split(/\t/, $line, -1);
 		my %columnIndexHash = map {$tokenList[$_] => $_} 0 .. $#tokenList;
+		if((my $column = $tokenList[0]) =~ s/^#//) {
+			$columnIndexHash{$column} = 0;
+		}
 		push(@indexList, @columnIndexHash{@indexesList});
 		$excludeIndexHash{$_} = 1 foreach(@columnIndexHash{@excludeIndexesList});
 		print join("\t", @tokenList[grep {!$excludeIndexHash{$_}} @indexList]), "\n";
@@ -48,9 +51,12 @@ if(@indexesList) {
 	if($useColumnInsteadOfIndexes) {
 		chomp(my $line = <$reader>);
 		my @tokenList = split(/\t/, $line, -1);
-		my @indexList = 0 .. $#tokenList;
 		my %columnIndexHash = map {$tokenList[$_] => $_} 0 .. $#tokenList;
+		if((my $column = $tokenList[0]) =~ s/^#//) {
+			$columnIndexHash{$column} = 0;
+		}
 		$excludeIndexHash{$_} = 1 foreach(@columnIndexHash{@excludeIndexesList});
+		my @indexList = 0 .. $#tokenList;
 		print join("\t", @tokenList[grep {!$excludeIndexHash{$_}} @indexList]), "\n";
 	} else {
 		$excludeIndexHash{$_} = 1 foreach(map {eval($_)} @excludeIndexesList);

@@ -19,7 +19,7 @@ Usage:   perl RPKM.pl [options] gene.gtf gene.count.txt > RPKM.txt
 
 Options: -h       display this help message
          -H       with header
-         -g STR   gene attribute
+         -g STR   gene attribute [$geneAttribute]
 
 EOF
 }
@@ -40,7 +40,7 @@ my %geneLengthHash = ();
 			my %tokenHash = ();
 			@tokenHash{'chromosome', 'source', 'feature', 'start', 'end', 'score', 'strand', 'frame', 'attribute'} = split(/\t/, $line, -1);
 			$tokenHash{$1} = $2 while($tokenHash{'attribute'} =~ m/([^"; ]+) +"([^"]+)";/g);
-			print $writer join("\t", @tokenHash{@columnList}), "\n";
+			print $writer join("\t", @tokenHash{@columnList}), "\n" if(defined($tokenHash{$geneAttribute}));
 		}
 		close($reader);
 	}

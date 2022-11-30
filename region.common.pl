@@ -9,7 +9,7 @@ use List::Util qw(all min max);
 
 my (@regionFileList) = @ARGV;
 my $pid = open2(my $reader, my $writer, "sort -t '\t' -k1,1 -k2,2n -k3,3n");
-foreach my $regionFile (@regionFileList) {
+foreach my $regionFile (grep {-s $_} grep {-r $_} @regionFileList) {
 	open(my $reader, "sort -t '\t' -k1,1 -k2,2n -k3,3n $regionFile |");
 	chomp(my $line = <$reader>);
 	my ($chromosome, $start, $end) = split(/\t/, $line, -1);

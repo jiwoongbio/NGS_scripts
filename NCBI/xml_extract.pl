@@ -1,11 +1,26 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 # Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;
 local $SIG{__WARN__} = sub { die $_[0] };
 
 use XML::LibXML;
+use Getopt::Long qw(:config no_ignore_case);
 
+GetOptions(
+	'h' => \(my $help = ''),
+	'd=s' => \(my $delimiter = ','),
+);
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage: xml_extract.pl [options] xml_file commom_path_nodes_comma_separated [each_column_path_nodes_comma_separated ...] > table.txt
+
+Options: -h       display this help message
+         -d STR   delimiter of multiple values [$delimiter]
+
+EOF
+}
 my ($xmlFile, $childNodeTagNames, @childNodeTagNamesList) = @ARGV;
 my @childNodeTagNameList = split(/,/, $childNodeTagNames);
 my @childNodeTagNameListList = map {[split(/,/, $_)]} @childNodeTagNamesList;
@@ -30,7 +45,7 @@ if(@childNodeTagNameListList) {
 				push(@{$tokenList[$index]}, $childNode->textContent);
 			}
 		}
-		print join("\t", map {defined($_) ? join(',', @$_) : ''} @tokenList[0 .. $#childNodeTagNameListList]), "\n";
+		print join("\t", map {defined($_) ? join($delimiter, @$_) : ''} @tokenList[0 .. $#childNodeTagNameListList]), "\n";
 	}
 } else {
 	my $lastName = pop(@childNodeTagNameList);

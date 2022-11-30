@@ -4,7 +4,7 @@ library(ggtree)
 tree <- read.tree(args[1])
 
 if(args[2] != "") {
-	table <- read.table(args[2], header = FALSE, sep = "\t", stringsAsFactors = FALSE, comment.char = "")
+	table <- read.table(args[2], header = FALSE, sep = "\t", quote = "", comment.char = "", stringsAsFactors = FALSE)
 	colnames(table) <- c("sample", "name", "color")
 } else {
 	table <- data.frame(sample = tree$tip.label, name = tree$tip.label, color = "black")

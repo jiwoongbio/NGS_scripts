@@ -5,40 +5,55 @@ use warnings;
 local $SIG{__WARN__} = sub { die $_[0] };
 
 use IPC::Open2;
-use List::Util qw(all min max);
+use Getopt::Long qw(:config no_ignore_case);
 
+GetOptions(
+	'c=i' => \(my $countIndex = ''),
+);
 my (@regionFileList) = @ARGV;
-my $pid = open2(my $reader, my $writer, "sort -t '\t' -k1,1 -k2,2n -k3,3n | uniq -c");
+my $pid = open2(my $reader, my $writer, "sort -t '\t' -k1,1 -k2,2n");
 foreach my $regionFile (@regionFileList) {
 	open(my $reader, ($regionFile =~ /\.gz$/) ? "gzip -dc $regionFile |" : $regionFile);
 	while(my $line = <$reader>) {
 		chomp($line);
-		my ($chromosome, $start, $end) = split(/\t/, $line, -1);
-		print $writer join("\t", $chromosome, $start, 1), "\n";
-		print $writer join("\t", $chromosome, $end + 1, -1), "\n";
+		my @tokenList = split(/\t/, $line, -1);
+		my ($chromosome, $start, $end) = @tokenList;
+		my $count = $countIndex eq '' ? 1 : $tokenList[$countIndex];
+		print $writer join("\t", $chromosome, $start, $count), "\n";
+		print $writer join("\t", $chromosome, $end + 1, -$count), "\n";
 	}
 	close($reader);
 }
 close($writer);
 {
-	my ($chromosome, $start, $count) = ('', 0, 0);
+	my ($chromosome, $start, $startCount, $position, $positionCount) = ('', 0, 0, 0, 0);
 	while(my $line = <$reader>) {
 		chomp($line);
-		if($line =~ s/^ *([0-9]+) //) {
-			my @tokenList = split(/\t/, $line, -1);
-			if($tokenList[0] eq $chromosome) {
-				print join("\t", $chromosome, $start, $tokenList[1] - 1, $count), "\n" if($start <= $tokenList[1] - 1 && $count > 0);
-				$start = $tokenList[1];
-				$count += $1 * $tokenList[2];
-				die if($count < 0);
-			} else {
-				die if($count != 0);
-				die if($tokenList[2] != 1);
-				($chromosome, $start, $count) = (@tokenList[0, 1], $1);
+		my @tokenList = split(/\t/, $line, -1);
+		if($tokenList[0] ne $chromosome) {
+			die if($positionCount != 0);
+			if($positionCount != $startCount) {
+				print join("\t", $chromosome, $start, $position - 1, $startCount), "\n" if($startCount != 0);
+				$startCount = $positionCount;
 			}
+			($chromosome, $start, $position) = ($tokenList[0], 0, $tokenList[1]);
 		}
+		if($tokenList[1] != $position) {
+			die if($positionCount < 0);
+			if($positionCount != $startCount) {
+				print join("\t", $chromosome, $start, $position - 1, $startCount), "\n" if($startCount != 0);
+				($start, $startCount) = ($position, $positionCount);
+			}
+			$position = $tokenList[1];
+		}
+		$positionCount += $tokenList[2];
 	}
-	die if($count != 0);
+	die if($positionCount != 0);
+	if($positionCount != $startCount) {
+		print join("\t", $chromosome, $start, $position - 1, $startCount), "\n" if($startCount != 0);
+		$startCount = $positionCount;
+	}
+	($chromosome, $start, $position) = ('', 0, 0);
 }
 close($reader);
 waitpid($pid, 0);

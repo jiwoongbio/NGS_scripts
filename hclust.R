@@ -11,6 +11,19 @@ if(identical(rownames(table), colnames(table)) && isSymmetric(table)) {
 	hc <- hclust(dist(t(table)))
 }
 
-pdf(file = args[2], width = as.numeric(args[3]), height = as.numeric(args[4]))
-plot(hc)
+tip.color <- NULL
+tip.color[colnames(table)] <- "#000000"
+if(args[2] != "") {
+	table <- read.table(args[2], header = FALSE, sep = "\t", stringsAsFactors = FALSE, comment.char = "")
+	colnames(table) <- c("sample", "name", "color")
+	rownames(table) <- table$sample
+	tip.color[hc$labels %in% table$sample] <- table[hc$labels[hc$labels %in% table$sample], "color"]
+	hc$labels[hc$labels %in% table$sample] <- table[hc$labels[hc$labels %in% table$sample], "name"]
+}
+
+pdf(file = args[3], width = as.numeric(args[4]), height = as.numeric(args[5]))
+par(mar = c(0, 0, 0, 0))
+
+library(ape)
+plot(as.phylo(hc), font = 1, tip.color = tip.color, underscore = TRUE)
 dev.off()

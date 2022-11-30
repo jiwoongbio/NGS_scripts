@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 # Author: Jiwoong Kim (jiwoongbio@gmail.com)
 use strict;
 use warnings;
@@ -7,7 +7,7 @@ local $SIG{__WARN__} = sub { die $_[0] };
 use List::Util qw(sum);
 
 my ($tableFile) = @ARGV;
-open(my $reader, $tableFile);
+open(my $reader, ($tableFile =~ /\.gz$/ ? "gzip -dc $tableFile |" : $tableFile));
 chomp(my $line = <$reader>);
 my @columnList = split(/\t/, $line, -1);
 my @sampleList = @columnList[1 .. $#columnList];
