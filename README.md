@@ -17,29 +17,42 @@ cd Annomen.hg38
 time ./Annomen_table.hg38.sh
 
 # Generate genome index
-time bwa index hg38.fasta
-time samtools faidx hg38.fasta
+time bwa index genome.fasta
+time samtools faidx genome.fasta
 
-# Generate transcriptome index
-time bwa index human.rna.fna
-time samtools faidx human.rna.fna
+# Calculate genome sequence lengths
+time fasta.length.pl genome.fasta > genome.length.txt
 
-# List rRNA transcripts
-time sed -n 's/^>//p' human.rna.fna | sed 's/\s/\t/' | sed -r 's/, ([^,]*)$/\t\1/' | awk -F'\t' '($3 == "ribosomal RNA" || $3 == "rRNA")' > rRNA.txt
+# Calculate refseq transcript sequence lengths
+time fasta.length.pl refseq.transcript.fasta > refseq.transcript.length.txt
 
 # List gene / transcript pairs
-time table.rearrangeColumns.pl -c Annomen_table.hg38.txt geneName transcriptId | awk '(NR > 1)' | sed -r 's/_([0-9]+\.[0-9]+)/\t\1/' | sort -t $'\t' -k1,1 -k2,2 -k3,3n | uniq | awk -F'\t' -vOFS='\t' '{print $1, $2"_"$3}' > gene.transcript.txt
+time perl gff_extract.pl -E */*_genomic.gff.gz gene transcript_id | table.search.pl refseq.transcript.length.txt 0 - 1 | sed -r 's/_([0-9]+\.[0-9]+)/\t\1/' | sort -t $'\t' -k1,1 -k2,2 -k3,3n | uniq | awk -F'\t' -vOFS='\t' '{print $1, $2"_"$3}' > gene.transcript.txt
 
 # Extract transcript sequences with gene annotation
-time sed 's/ .*$//' human.rna.fna | tr '\n' '\t' | sed 's/\t$/\n/' | sed 's/\t>/\n>/g' | sed 's/^>//' | table.search.pl gene.transcript.txt 1 - 0 | sed 's/^/>/' | sed 's/\t/\n/g' > transcript.fasta
+time sed 's/\t/ /g' refseq.transcript.fasta | tr '\n' '\t' | sed 's/\t$/\n/' | sed 's/\t>/\n>/g' | sed 's/^>//' | sed 's/ /\t/' | table.search.pl gene.transcript.txt 1 - 0 | sed 's/\t/ /' | sed 's/^/>/' | sed 's/\t/\n/g' > transcript.fasta
 
-# Generate transcriptome index
+# Generate transcript index
 time bwa index transcript.fasta
 time samtools faidx transcript.fasta
 
+# Calculate transcript sequence lengths
+time fasta.length.pl transcript.fasta > transcript.length.txt
+
+# List rRNA
+time sed 's/\t/ /g' transcript.fasta | sed -n 's/^>//p' | sed 's/ /\t/' | sed -r 's/, ([^,]*)$/\t\1/' | awk -F'\t' '($3 == "ribosomal RNA" || $3 == "rRNA")' > rRNA.txt
+
 # Fix GTF file
-time gzip -dc GCF_000001405.39_GRCh38.p13/GCF_000001405.39_GRCh38.p13_genomic.gtf.gz | grep -v '^#' | table.substitute_value.pl -i 0 -f chromosome.hg38.txt -o - > genomic.gtf
+time gzip -dc */*_genomic.gtf.gz | grep -v '^#' | table.substitute_value.pl -i 0 -f chromosome.UCSC.txt -o - | table.search.pl genome.length.txt 0 - 0 > genome.gtf
 
 # Generate STAR index
-rm -rf STAR; mkdir STAR; time STAR --runThreadN 16 --runMode genomeGenerate --genomeDir STAR --genomeFastaFiles hg38.fasta --sjdbGTFfile genomic.gtf
+rm -rf STAR; mkdir STAR; time STAR --runThreadN 16 --runMode genomeGenerate --genomeDir STAR --genomeFastaFiles genome.fasta --sjdbGTFfile genome.gtf
+
+# List gene / gene ID pairs
+time perl gff_extract.pl -E */*_genomic.gff.gz gene Dbxref | table.delimitLines.pl - 1 | sed -n 's/GeneID://p' | sort -u > gene.gene_id.txt
+
+# List gene / representative transcript pairs
+time perl gff_extract.pl -E */*_genomic.gff.gz transcript_id tag | awk -F'\t' '($2 == "MANE Select")' | table.search.pl - 0 gene.transcript.txt 1 > gene.transcript.MANE_Select.txt
+time perl gff_extract.pl -E */*_genomic.gff.gz transcript_id tag | awk -F'\t' '($2 == "RefSeq Select")' | table.search.pl - 0 gene.transcript.txt 1 > gene.transcript.RefSeq_Select.txt
+time table.search.pl -v gene.transcript.MANE_Select.txt 0,1 gene.transcript.RefSeq_Select.txt 0,1 | cat gene.transcript.MANE_Select.txt - > gene.transcript.select.txt
 ```

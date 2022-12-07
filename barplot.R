@@ -21,10 +21,10 @@ if(step.increase == 0) {
 }
 
 gap <- as.numeric(args[8])
-ylim <- c(min(table$y), max(table$y))
+ylim <- c(0, max(sapply(levels, function(x) {mean_sd(table$y[table$x == x])$ymax})))
 ylim[2] <- ylim[1] + (ylim[2] - ylim[1]) / (1 - (nrow(t) - 1) * step.increase - gap)
 t$y.position <- ylim[2] - (ylim[2] - ylim[1]) * (1:nrow(t) - 1) * step.increase
 
 pdf(file = args[2], width = as.numeric(args[3]), height = as.numeric(args[4]))
-ggboxplot(table, x = "x", y = "y", fill = "x", xlab = args[5], ylab = args[6], ylim = ylim) + stat_pvalue_manual(t, label = "p.adj.signif", tip.length = 0.01) + theme(legend.position = "none")
+ggbarplot(table, x = "x", y = "y", fill = "x", xlab = args[5], ylab = args[6], ylim = ylim, add = "mean_sd") + stat_pvalue_manual(t, label = "p.adj.signif", tip.length = 0.01) + theme(legend.position = "none")
 dev.off()

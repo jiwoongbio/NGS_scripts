@@ -4,7 +4,6 @@ use strict;
 use warnings;
 local $SIG{__WARN__} = sub { die $_[0] };
 
-use List::Util qw(sum);
 use Bio::DB::Taxonomy;
 use Getopt::Long qw(:config no_ignore_case);
 
@@ -44,7 +43,11 @@ foreach my $kraken2File (@kraken2FileList) {
 foreach my $taxonId (sort {$a <=> $b} keys %taxonIdCountHash) {
 	if(defined(my $taxon = $db->get_taxon(-taxonid => $taxonId))) {
 		next if($targetRank ne '' && $targetRank ne $taxon->rank);
-		my $count = sum(0, grep {defined} @taxonIdCountHash{getTaxonIdList($taxonId)});
+		my $count = 0;
+		$count += $_ foreach(grep {defined} @taxonIdCountHash{getTaxonIdList($taxonId)});
+		if($targetRank ne '') {
+			$count += $_ foreach(grep {defined} @taxonIdCountHash{map {$_->id} $db->get_all_Descendents($taxon)});
+		}
 		print join("\t", $taxonId, $taxon->scientific_name, $taxon->rank, $count), "\n";
 	} else {
 		print STDERR "Can't find taxon for '$taxonId'\n";
