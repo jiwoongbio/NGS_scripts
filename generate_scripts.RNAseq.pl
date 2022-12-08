@@ -21,7 +21,7 @@ my @moduleList = (
 	'HTSeq/0.6.1',
 );
 
-my $additionalPaths = join(':', $directory);
+my $additionalPaths = join(':', $directory, '/archive/PCDC/PCDC_Core/shared/pipelines/bin');
 
 GetOptions(
 	'h' => \(my $help = ''),

@@ -58,6 +58,6 @@ time table.search.pl -v gene.transcript.MANE_Select.txt 0,1 gene.transcript.RefS
 
 # dbSNP
 time wget --no-verbose --no-check-certificate https://ftp.ncbi.nlm.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz
-time gzip -dc GCF_000001405.39.gz | grep -v '^#' | table.substitute_value.pl -i 0 -f chromosome.UCSC.txt -o - | bash -c "cat <(gzip -dc GCF_000001405.39.gz | head -n1000 | grep '^#') -" | perl leftalignIndel.pl - genome.fasta | perl sort_by_reference.pl - genome.fasta 0 1 | bgzip > snp_b155.vcf.gz
+time gzip -dc GCF_000001405.39.gz | grep -v '^#' | table.substitute_value.pl -i 0 -f chromosome.UCSC.txt -o - | table.search.pl genome.length.txt 0 - 0 | bash -c "cat <(gzip -dc GCF_000001405.39.gz | head -n1000 | grep '^#') -" | perl leftalignIndel.pl - genome.fasta | perl sort_by_reference.pl - genome.fasta 0 1 | bgzip > snp_b155.vcf.gz
 time tabix --preset vcf snp_b155.vcf.gz
 ```
