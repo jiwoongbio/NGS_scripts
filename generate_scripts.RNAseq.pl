@@ -231,12 +231,12 @@ time \$GATK --java-options "-Djava.io.tmpdir=\$TMPDIR -Xmx16g" SplitNCigarReads 
 EOF
 	print $writer <<EOF;
 # GATK: base quality score recalibration (BQSR)
-time \$GATK --java-options "-Djava.io.tmpdir=\$TMPDIR -Xmx16g" BaseRecalibrator -R \$ANNOMEN/genome.fasta -I $sample.SplitNCigarReads.bam -O $sample.recal_data.table --use-original-qualities --known-sites  --verbosity ERROR
+time \$GATK --java-options "-Djava.io.tmpdir=\$TMPDIR -Xmx16g" BaseRecalibrator -R \$ANNOMEN/genome.fasta -I $sample.SplitNCigarReads.bam -O $sample.recal_data.table --use-original-qualities --known-sites \$ANNOMEN/snp_b155.vcf.gz --verbosity ERROR
 time \$GATK --java-options "-Djava.io.tmpdir=\$TMPDIR -Xmx16g" ApplyBQSR -R \$ANNOMEN/genome.fasta -I $sample.SplitNCigarReads.bam --use-original-qualities --bqsr-recal-file $sample.recal_data.table -O $sample.recal_reads.bam --verbosity ERROR && rm $sample.SplitNCigarReads.{bam,bai}
 
 # GATK: call variants with HaplotypeCaller
 time \$GATK --java-options "-Djava.io.tmpdir=\$TMPDIR -Xmx16g" HaplotypeCaller -R \$ANNOMEN/genome.fasta -I $sample.recal_reads.bam -O $sample.raw.snps.indels.g.vcf.gz -ERC GVCF -G StandardAnnotation -G AS_StandardAnnotation
-time \$GATK --java-options "-Djava.io.tmpdir=\$TMPDIR -Xmx16g" GenotypeGVCFs -R \$ANNOMEN/genome.fasta -V $sample.raw.snps.indels.g.vcf.gz -O $sample.raw.snps.indels.vcf.gz -D 
+time \$GATK --java-options "-Djava.io.tmpdir=\$TMPDIR -Xmx16g" GenotypeGVCFs -R \$ANNOMEN/genome.fasta -V $sample.raw.snps.indels.g.vcf.gz -O $sample.raw.snps.indels.vcf.gz -D \$ANNOMEN/snp_b155.vcf.gz
 
 EOF
 	print $writer <<EOF;
