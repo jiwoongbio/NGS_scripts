@@ -30,33 +30,38 @@ foreach my $sample (@sampleList) {
 		chomp($columnSampleCountHash{'QC-passed reads'}->{$sample} = `cut -f3 $directoryPrefix.trimgalore.read_length.read_count.txt | awk '{a += \$o} END {print a}'`);
 		$columnSampleCountHash{'% QC-passed reads'}->{$sample} = sprintf('%.1f%%', $columnSampleCountHash{'QC-passed reads'}->{$sample} / $columnSampleCountHash{'Total reads'}->{$sample} * 100);
 	}
-	if(-s (my $file = "$directoryPrefix.transcriptome.remocon.log")) {
+	if(-s "$directoryPrefix.trimmed.read_length.read_count.txt") {
+		addColumn('QC-passed reads', '% QC-passed reads');
+		chomp($columnSampleCountHash{'QC-passed reads'}->{$sample} = `cut -f3 $directoryPrefix.trimmed.read_length.read_count.txt | awk '{a += \$o} END {print a}'`);
+		$columnSampleCountHash{'% QC-passed reads'}->{$sample} = sprintf('%.1f%%', $columnSampleCountHash{'QC-passed reads'}->{$sample} / $columnSampleCountHash{'Total reads'}->{$sample} * 100);
+	}
+	if(my ($file) = grep {-s $_} ("$directoryPrefix.transcript.remocon.log", "$directoryPrefix.transcriptome.remocon.log")) {
 		chomp(my @typeCountList = `cat $file`);
 		my %typeCountHash = map {$_->[0] => $_->[1]} map {[split(/: /, $_, 2)]} @typeCountList;
 		my $count = sum(values %typeCountHash);
 		if($count * 2 == $columnSampleCountHash{'QC-passed reads'}->{$sample}) {
 			$typeCountHash{$_} = $typeCountHash{$_} * 2 foreach(keys %typeCountHash);
 		} elsif($count != $columnSampleCountHash{'QC-passed reads'}->{$sample}) {
-			print STDERR join("\t", $sample, 'different read count', 'transcriptome'), "\n";
+			print STDERR join("\t", $sample, 'different read count', 'transcript'), "\n";
 		}
-		$columnSampleCountHash{'Non-contaminant transcriptome reads'}->{$sample} = $typeCountHash{'non-contaminant'};
+		$columnSampleCountHash{'Non-contaminant transcript reads'}->{$sample} = $typeCountHash{'non-contaminant'};
 	}
-	if(-s "$directoryPrefix.transcriptome.remocon.total_read_count.txt") {
-		chomp(my $count = `cat $directoryPrefix.transcriptome.remocon.total_read_count.txt`);
-		print STDERR join("\t", $sample, 'different read count', 'transcriptome'), "\n" if($count != $columnSampleCountHash{'Non-contaminant transcriptome reads'}->{$sample});
+	if(my ($file) = grep {-s $_} ("$directoryPrefix.transcript.remocon.total_read_count.txt", "$directoryPrefix.transcriptome.remocon.total_read_count.txt")) {
+		chomp(my $count = `cat $file`);
+		print STDERR join("\t", $sample, 'different read count', 'transcript'), "\n" if($count != $columnSampleCountHash{'Non-contaminant transcriptome reads'}->{$sample});
 	}
-	if(-s "$directoryPrefix.transcriptome.total_read_count.txt") {
-		chomp(my $count = `cat $directoryPrefix.transcriptome.total_read_count.txt`);
-		print STDERR join("\t", $sample, 'different read count', 'transcriptome'), "\n" if($count != $columnSampleCountHash{'QC-passed reads'}->{$sample});
+	if(my ($file) = grep {-s $_} ("$directoryPrefix.transcript.total_read_count.txt", "$directoryPrefix.transcriptome.total_read_count.txt")) {
+		chomp(my $count = `cat $file`);
+		print STDERR join("\t", $sample, 'different read count', 'transcript'), "\n" if($count != $columnSampleCountHash{'QC-passed reads'}->{$sample});
 	}
-	if(my ($file) = grep {-s $_} ("$directoryPrefix.transcriptome.mapping_strand.read_count.txt", "$directoryPrefix.transcriptome.remocon.mapping_strand.read_count.txt")) {
-		addColumn('Transcriptome-mapped reads', '% Transcriptome-mapped reads', 'Reverse-stranded reads', '% Reverse-stranded reads');
-		chomp($columnSampleCountHash{'Transcriptome-mapped reads'}->{$sample} = `cut -f2 $file | awk '{a += \$o} END {print a}'`);
-		$columnSampleCountHash{'% Transcriptome-mapped reads'}->{$sample} = sprintf('%.1f%%', $columnSampleCountHash{'Transcriptome-mapped reads'}->{$sample} / $columnSampleCountHash{'QC-passed reads'}->{$sample} * 100);
+	if(my ($file) = grep {-s $_} ("$directoryPrefix.transcript.mapping_strand.read_count.txt", "$directoryPrefix.transcript.remocon.mapping_strand.read_count.txt", "$directoryPrefix.transcriptome.mapping_strand.read_count.txt", "$directoryPrefix.transcriptome.remocon.mapping_strand.read_count.txt")) {
+		addColumn('Transcript-mapped reads', '% Transcript-mapped reads', 'Reverse-stranded reads', '% Reverse-stranded reads');
+		chomp($columnSampleCountHash{'Transcript-mapped reads'}->{$sample} = `cut -f2 $file | awk '{a += \$o} END {print a}'`);
+		$columnSampleCountHash{'% Transcript-mapped reads'}->{$sample} = sprintf('%.1f%%', $columnSampleCountHash{'Transcript-mapped reads'}->{$sample} / $columnSampleCountHash{'QC-passed reads'}->{$sample} * 100);
 		chomp($columnSampleCountHash{'Reverse-stranded reads'}->{$sample} = `awk -F'\\t' '(\$1 == "reverse") {print \$2}' $file`);
-		$columnSampleCountHash{'% Reverse-stranded reads'}->{$sample} = sprintf('%.1f%%', $columnSampleCountHash{'Reverse-stranded reads'}->{$sample} / $columnSampleCountHash{'Transcriptome-mapped reads'}->{$sample} * 100);
+		$columnSampleCountHash{'% Reverse-stranded reads'}->{$sample} = sprintf('%.1f%%', $columnSampleCountHash{'Reverse-stranded reads'}->{$sample} / $columnSampleCountHash{'Transcript-mapped reads'}->{$sample} * 100);
 	}
-	if(my ($file) = grep {-s $_} ("$directoryPrefix.transcriptome.insert_size_metrics.txt", "$directoryPrefix.transcriptome.remocon.insert_size_metrics.txt")) {
+	if(my ($file) = grep {-s $_} ("$directoryPrefix.transcript.insert_size_metrics.txt", "$directoryPrefix.transcript.remocon.insert_size_metrics.txt", "$directoryPrefix.transcriptome.insert_size_metrics.txt", "$directoryPrefix.transcriptome.remocon.insert_size_metrics.txt")) {
 		addColumn('Median insert size', 'Median absolute deviation', 'Mean insert size', 'Standard deviation');
 		open(my $reader, "grep -v '^#' $file | grep -v '^\$' |");
 		chomp(my $line = <$reader>);

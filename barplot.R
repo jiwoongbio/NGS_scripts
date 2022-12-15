@@ -26,5 +26,9 @@ ylim[2] <- ylim[1] + (ylim[2] - ylim[1]) / (1 - (nrow(t) - 1) * step.increase - 
 t$y.position <- ylim[2] - (ylim[2] - ylim[1]) * (1:nrow(t) - 1) * step.increase
 
 pdf(file = args[2], width = as.numeric(args[3]), height = as.numeric(args[4]))
-ggbarplot(table, x = "x", y = "y", fill = "x", xlab = args[5], ylab = args[6], ylim = ylim, add = "mean_sd") + stat_pvalue_manual(t, label = "p.adj.signif", tip.length = 0.01) + theme(legend.position = "none")
+if("p.adj.signif" %in% colnames(t)) {
+	ggbarplot(table, x = "x", y = "y", fill = "x", xlab = args[5], ylab = args[6], ylim = ylim, add = "mean_sd") + stat_pvalue_manual(t, label = "p.adj.signif", tip.length = 0.01) + theme(legend.position = "none")
+} else {
+	ggbarplot(table, x = "x", y = "y", fill = "x", xlab = args[5], ylab = args[6], ylim = ylim, add = "mean_sd") + stat_pvalue_manual(t, label = "p", tip.length = 0.01) + theme(legend.position = "none")
+}
 dev.off()
