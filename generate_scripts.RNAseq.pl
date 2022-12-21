@@ -142,7 +142,7 @@ EOF
 		if($singleEnd) {
 			print $writer <<EOF;
 # Trim Galore: quality and adapter trimming
-trim_galore --illumina --cores $threads $prefix.$fastqSuffix
+time trim_galore --illumina --cores $threads $prefix.$fastqSuffix
 
 mv $prefix.1_trimmed.fq.gz $prefix.trimmed.1.fastq.gz
 
@@ -154,7 +154,7 @@ time fastq.filter_pair.pl $prefix.$fastqSuffix $prefix.pair_filtered.$fastqSuffi
 time fastq.read_length.read_count.pl $prefix.pair_filtered.$fastqSuffix > $prefix.pair_filtered.read_length.read_count.txt
 
 # Trim Galore: quality and adapter trimming
-trim_galore --illumina --cores $threads --paired $prefix.pair_filtered.$fastqSuffix
+time trim_galore --illumina --cores $threads --paired $prefix.pair_filtered.$fastqSuffix
 
 mv $prefix.pair_filtered.1_val_1.fq.gz $prefix.trimmed.1.fastq.gz && rm $prefix.pair_filtered.1.fastq.gz
 mv $prefix.pair_filtered.2_val_2.fq.gz $prefix.trimmed.2.fastq.gz && rm $prefix.pair_filtered.2.fastq.gz
@@ -163,7 +163,7 @@ EOF
 		} else {
 			print $writer <<EOF;
 # Trim Galore: quality and adapter trimming
-trim_galore --illumina --cores $threads --paired $prefix.$fastqSuffix
+time trim_galore --illumina --cores $threads --paired $prefix.$fastqSuffix
 
 mv $prefix.1_val_1.fq.gz $prefix.trimmed.1.fastq.gz
 mv $prefix.2_val_2.fq.gz $prefix.trimmed.2.fastq.gz

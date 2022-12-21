@@ -6,7 +6,7 @@
 4. STAR - https://github.com/alexdobin/STAR
 
 
-## Setting for human RNA-seq data analysis (generate_scripts.RNAseq.hg38.pl)
+## Setting for human RNA-seq data analysis (generate_scripts.RNAseq.pl)
 
 ```
 git clone https://github.com/jiwoongbio/Annomen.git
@@ -19,6 +19,9 @@ time ./Annomen_table.hg38.sh
 # Generate genome index
 time bwa index genome.fasta
 time samtools faidx genome.fasta
+
+#PICARD=where/is/picard.jar
+time java -jar $PICARD CreateSequenceDictionary REFERENCE=genome.fasta
 
 # Calculate genome sequence lengths
 time fasta.length.pl genome.fasta > genome.length.txt
