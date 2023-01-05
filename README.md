@@ -1,14 +1,17 @@
-## Requirements
-
-1. Annomen - https://github.com/jiwoongbio/Annomen
-2. BWA - http://bio-bwa.sourceforge.net
-3. Samtools - http://www.htslib.org
-4. STAR - https://github.com/alexdobin/STAR
-
-
 ## Setting for human RNA-seq data analysis (generate_scripts.RNAseq.pl)
 
 ```
+# Requirements
+# 1. Annomen - https://github.com/jiwoongbio/Annomen
+# 2. BWA - http://bio-bwa.sourceforge.net
+# 3. Samtools - http://www.htslib.org
+# 4. STAR - https://github.com/alexdobin/STAR
+#
+# - You can use conda to install the requirements as follows:
+# conda create -n Annomen -c bioconda perl perl-bioperl emboss
+# conda install -n Annomen -c anaconda wget
+# conda install -n Annomen -c bioconda bwa samtools star
+
 git clone https://github.com/jiwoongbio/Annomen.git
 mv Annomen Annomen.hg38
 cd Annomen.hg38
