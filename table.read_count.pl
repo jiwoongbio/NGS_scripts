@@ -110,6 +110,7 @@ foreach my $sample (@sampleList) {
 		$columnSampleCountHash{'% Uniquely mapped reads'}->{$sample} = sprintf('%.1f%%', $columnSampleCountHash{'Uniquely mapped reads'}->{$sample} / $columnSampleCountHash{'Genome-mapped reads'}->{$sample} * 100);
 	}
 	if(my ($file) = grep {-s $_} ("$directoryPrefix.remocon.log", "$directoryPrefix.STAR.remocon.log")) {
+		$columnSampleCountHash{'QC-passed reads'}->{$sample} = $columnSampleCountHash{'Total reads'}->{$sample} unless(defined($columnSampleCountHash{'QC-passed reads'}->{$sample}));
 		chomp(my @typeCountList = `cat $file`);
 		my %typeCountHash = map {$_->[0] => $_->[1]} map {[split(/: /, $_, 2)]} @typeCountList;
 		my $count = sum(values %typeCountHash);
