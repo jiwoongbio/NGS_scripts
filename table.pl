@@ -6,6 +6,9 @@ local $SIG{__WARN__} = sub { die $_[0] };
 
 use Getopt::Long qw(:config no_ignore_case);
 
+chomp(my $file = `readlink -f $0`);
+my $directory = $1 if($file =~ s/(^.*\/)//);
+
 GetOptions(
 	'h' => \(my $help = ''),
 	'n=s' => \(my $nameColumnIndexes = 0),
@@ -16,7 +19,7 @@ GetOptions(
 if($help || scalar(@ARGV) == 0) {
 	die <<EOF;
 
-Usage:   table.pl [options] column=files [...]
+Usage:   $file [options] column=files [...]
 
 Options: -h       display this help message
          -n STR   name column indexes separated by comma [$nameColumnIndexes]

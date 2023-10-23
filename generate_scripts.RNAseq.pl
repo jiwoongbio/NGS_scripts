@@ -40,6 +40,7 @@ GetOptions(
 	'A=s' => \(my $gtfGeneAttribute = 'gene_id'),
 	'v' => \(my $callVariants = ''),
 	'D=s' => \(my $dbsnpFile = ''),
+	'j' => \(my $countSpliceJunctionReads = ''),
 );
 if($help || scalar(@ARGV) == 0) {
 	die <<EOF;
@@ -60,6 +61,7 @@ Options: -h       display this help message
          -A       gene attribute in GTF [$gtfGeneAttribute]
          -v       call variants
          -D FILE  dbSNP file [$defaultDbsnpFile]
+         -j       count splice junction reads
 
 EOF
 }
@@ -142,21 +144,22 @@ mkdir -p tmp
 export TMPDIR=`readlink -f tmp`
 
 EOF
-	foreach my $prefix (@prefixList) {
-		print $writer <<EOF;
+	unless(-r "$sample/$sample.genome.sorted.bam") {
+		foreach my $prefix (@prefixList) {
+			print $writer <<EOF;
 time fastq.read_length.read_count.pl $prefix.$fastqSuffix > $prefix.read_length.read_count.txt
 
 EOF
-		if($singleEnd) {
-			print $writer <<EOF;
+			if($singleEnd) {
+				print $writer <<EOF;
 # Trim Galore: quality and adapter trimming
 time trim_galore --illumina --cores $threads $prefix.$fastqSuffix
 
 mv $prefix.1_trimmed.fq.gz $prefix.trimmed.1.fastq.gz
 
 EOF
-		} elsif($filterPair) {
-			print $writer <<EOF;
+			} elsif($filterPair) {
+				print $writer <<EOF;
 time fastq.filter_pair.pl $prefix.$fastqSuffix $prefix.pair_filtered.$fastqSuffix > $prefix.pair_filtered.read_pair_count.txt
 
 time fastq.read_length.read_count.pl $prefix.pair_filtered.$fastqSuffix > $prefix.pair_filtered.read_length.read_count.txt
@@ -168,8 +171,8 @@ mv $prefix.pair_filtered.1_val_1.fq.gz $prefix.trimmed.1.fastq.gz && rm $prefix.
 mv $prefix.pair_filtered.2_val_2.fq.gz $prefix.trimmed.2.fastq.gz && rm $prefix.pair_filtered.2.fastq.gz
 
 EOF
-		} else {
-			print $writer <<EOF;
+			} else {
+				print $writer <<EOF;
 # Trim Galore: quality and adapter trimming
 time trim_galore --illumina --cores $threads --paired $prefix.$fastqSuffix
 
@@ -177,13 +180,13 @@ mv $prefix.1_val_1.fq.gz $prefix.trimmed.1.fastq.gz
 mv $prefix.2_val_2.fq.gz $prefix.trimmed.2.fastq.gz
 
 EOF
-		}
-		print $writer <<EOF;
+			}
+			print $writer <<EOF;
 time fastq.read_length.read_count.pl $prefix.trimmed.$fastqSuffix > $prefix.trimmed.read_length.read_count.txt
 
 EOF
-		if($noTranscriptomeMapping eq '') {
-			print $writer <<EOF;
+			if($noTranscriptomeMapping eq '') {
+				print $writer <<EOF;
 # BWA: mapping to transcripts
 time bwa mem -t $threads \$ANNOMEN/transcript.fasta $prefix.trimmed.$fastqSuffix | samtools sort - > $prefix.transcript.sorted.bam && samtools index $prefix.transcript.sorted.bam
 
@@ -191,75 +194,73 @@ time samtools view -c -F 2304 $prefix.transcript.sorted.bam > $prefix.transcript
 time sam.mapping_strand.read_count.pl $prefix.transcript.sorted.bam > $prefix.transcript.mapping_strand.read_count.txt
 
 EOF
-			if($singleEnd eq '') {
-				print $writer <<EOF;
+				if($singleEnd eq '') {
+					print $writer <<EOF;
 # Picard: estimate insert size
 time java -Djava.io.tmpdir=\$TMPDIR -Xmx16g -jar \$PICARD CollectInsertSizeMetrics INPUT=$prefix.transcript.sorted.bam OUTPUT=$prefix.transcript.insert_size_metrics.txt HISTOGRAM_FILE=$prefix.transcript.insert_size_histogram.pdf VERBOSITY=ERROR QUIET=true VALIDATION_STRINGENCY=LENIENT
 
 EOF
-			}
-			if($stranded eq '') {
-				print $writer <<EOF;
+				}
+				if($stranded eq '') {
+					print $writer <<EOF;
 time samtools view -F 2304 $prefix.transcript.sorted.bam | awk -F'\\t' '(and(\$2, 15) == 3 || and(\$2, 15) == 0)' | cut -f3 | uniq -c | sed -r 's/^ *([0-9]+) (.*)\$/\\2\\t\\1/' > $prefix.transcript.read_count.txt
 
 EOF
-			} elsif($stranded eq 'f') {
-				print $writer <<EOF;
+				} elsif($stranded eq 'f') {
+					print $writer <<EOF;
 time samtools view -F 2304 $prefix.transcript.sorted.bam | awk -F'\\t' '(and(\$2, 255) == 99 || and(\$2, 255) == 147 || and(\$2, 255) == 0)' | cut -f3 | uniq -c | sed -r 's/^ *([0-9]+) (.*)\$/\\2\\t\\1/' > $prefix.transcript.read_count.txt
 
 EOF
-			} elsif($stranded eq 'r') {
-				print $writer <<EOF;
+				} elsif($stranded eq 'r') {
+					print $writer <<EOF;
 time samtools view -F 2304 $prefix.transcript.sorted.bam | awk -F'\\t' '(and(\$2, 255) == 83 || and(\$2, 255) == 163 || and(\$2, 255) == 16)' | cut -f3 | uniq -c | sed -r 's/^ *([0-9]+) (.*)\$/\\2\\t\\1/' > $prefix.transcript.read_count.txt
 
 EOF
-			}
-			print $writer <<EOF;
+				}
+				print $writer <<EOF;
 time table.search.pl \$ANNOMEN/rRNA.txt 0 $prefix.transcript.read_count.txt 0 | awk -F'\\t' '{a += \$2} END {print a}' > $prefix.rRNA.read_count.txt
 
 rm $prefix.transcript.sorted.bam $prefix.transcript.sorted.bam.bai
 
 EOF
-		}
-		if($bwaInsteadOfSTAR eq '') {
-			if($outFilterMinOverLread eq '') {
-				print $writer <<EOF;
+			}
+			if($bwaInsteadOfSTAR eq '') {
+				if($outFilterMinOverLread eq '') {
+					print $writer <<EOF;
 # STAR: mapping to genome
 rm -rf $prefix.STAR; mkdir $prefix.STAR; time STAR --runMode alignReads --runThreadN $threads --genomeDir \$ANNOMEN/STAR --readFilesIn $prefix.trimmed.$fastqSuffix --readFilesCommand zcat --outFileNamePrefix $prefix.STAR/ --twopassMode Basic --outSAMattributes All --outSAMstrandField intronMotif --outSAMunmapped Within KeepPairs --outSAMtype BAM SortedByCoordinate
 
 EOF
-			} else {
-			print $writer <<EOF;
+				} else {
+				print $writer <<EOF;
 # STAR: mapping to genome
 rm -rf $prefix.STAR; mkdir $prefix.STAR; time STAR --runMode alignReads --runThreadN $threads --genomeDir \$ANNOMEN/STAR --readFilesIn $prefix.trimmed.$fastqSuffix --readFilesCommand zcat --outFileNamePrefix $prefix.STAR/ --twopassMode Basic --outSAMattributes All --outSAMstrandField intronMotif --outSAMunmapped Within KeepPairs --outSAMtype BAM SortedByCoordinate --outFilterScoreMinOverLread $outFilterMinOverLread --outFilterMatchNminOverLread $outFilterMinOverLread
 
 EOF
-			}
-			print $writer <<EOF;
+				}
+				print $writer <<EOF;
 time mv $prefix.STAR/Aligned.sortedByCoord.out.bam $prefix.genome.sorted.bam && samtools index $prefix.genome.sorted.bam
 
 EOF
-		} else {
-			print $writer <<EOF;
+			} else {
+				print $writer <<EOF;
 # BWA: mapping to genome
 time bwa mem -t $threads \$ANNOMEN/genome.fasta $prefix.trimmed.$fastqSuffix | samtools sort - > $prefix.genome.sorted.bam && samtools index $prefix.genome.sorted.bam
 
 EOF
-		}
-		print $writer <<EOF;
+			}
+			print $writer <<EOF;
 time samtools view -c -F 2304 $prefix.genome.sorted.bam > $prefix.genome.total_read_count.txt
 time samtools view -c -F 2316 $prefix.genome.sorted.bam > $prefix.genome.mapped_read_count.txt
 time samtools view -c -F 2316 -q $minimumMappingQuality $prefix.genome.sorted.bam > $prefix.genome.uniquely_mapped_read_count.txt
 
 EOF
-	}
-	unless(scalar(@prefixList) == 1 && $prefixList[0] eq $sample) {
-		print $writer <<EOF;
+		}
+		unless(scalar(@prefixList) == 1 && $prefixList[0] eq $sample) {
+			print $writer <<EOF;
 # Samtools: merge BAM files
 time samtools merge -f $sample.genome.sorted.bam `for prefix in @prefixList; do ls \$prefix.genome.sorted.bam; done` && samtools index $sample.genome.sorted.bam && for prefix in @prefixList; do rm \$prefix.genome.sorted.{bam,bam.bai}; done
 
-EOF
-		print $writer <<EOF;
 for prefix in @prefixList; do cat \$prefix.read_length.read_count.txt; done > $sample.read_length.read_count.txt
 for prefix in @prefixList; do cat \$prefix.trimmed.read_length.read_count.txt; done > $sample.trimmed.read_length.read_count.txt
 
@@ -273,15 +274,15 @@ for prefix in @prefixList; do cat \$prefix.genome.mapped_read_count.txt; done | 
 for prefix in @prefixList; do cat \$prefix.genome.uniquely_mapped_read_count.txt; done | awk '{a += \$o} END {print a}' > $sample.genome.uniquely_mapped_read_count.txt
 
 EOF
-	}
-	if($namesort eq '') {
-		print $writer <<EOF;
+		}
+		if($namesort eq '') {
+			print $writer <<EOF;
 # HTSeq-count: count reads per gene
 time htseq-count --format=bam --order=pos --stranded=$htseqcountStranded --type=$gtfGeneFeature --idattr=$gtfGeneAttribute --mode=union $sample.genome.sorted.bam \$ANNOMEN/genome.gtf > $sample.htseq-count.txt
 
 EOF
-	} else {
-		print $writer <<EOF;
+		} else {
+			print $writer <<EOF;
 # Samtools: sort alignment file by read name
 time samtools sort -n --threads $threads $sample.genome.sorted.bam > $sample.genome.namesorted.bam
 
@@ -289,12 +290,13 @@ time samtools sort -n --threads $threads $sample.genome.sorted.bam > $sample.gen
 time htseq-count --format=bam --order=name --stranded=$htseqcountStranded --type=$gtfGeneFeature --idattr=$gtfGeneAttribute --mode=union $sample.genome.namesorted.bam \$ANNOMEN/genome.gtf > $sample.htseq-count.txt
 
 EOF
-	}
-	print $writer <<EOF;
+		}
+		print $writer <<EOF;
 time CPM.pl $sample.htseq-count.txt > $sample.CPM.txt
 time RPKM.pl \$ANNOMEN/genome.gtf $sample.htseq-count.txt > $sample.RPKM.txt
 
 EOF
+	}
 	if($callVariants) {
 		print $writer <<EOF;
 time samtools view -b -F 2304 $sample.genome.sorted.bam > $sample.genome.sorted.filtered.bam
@@ -302,13 +304,9 @@ time samtools view -b -F 2304 $sample.genome.sorted.bam > $sample.genome.sorted.
 # Picard: add read group information
 time java -Djava.io.tmpdir=\$TMPDIR -Xmx16g -jar \$PICARD AddOrReplaceReadGroups INPUT=$sample.genome.sorted.filtered.bam OUTPUT=$sample.rgAdded.bam SORT_ORDER=coordinate RGID=$sample RGLB=$sample RGPL=illumina RGPU=$sample RGSM=$sample VERBOSITY=ERROR QUIET=true VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true && rm $sample.genome.sorted.filtered.bam
 
-EOF
-		print $writer <<EOF;
 # Picard: mark PCR duplicates
 time java -Djava.io.tmpdir=\$TMPDIR -Xmx16g -jar \$PICARD MarkDuplicates INPUT=$sample.rgAdded.bam OUTPUT=$sample.dupMarked.bam METRICS_FILE=$sample.dupMarked.metrics VERBOSITY=ERROR QUIET=true VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true && rm $sample.rgAdded.{bam,bai}
 
-EOF
-		print $writer <<EOF;
 # GATK: split reads with N in cigar
 time \$GATK --java-options "-Djava.io.tmpdir=\$TMPDIR -Xmx16g" SplitNCigarReads -R \$ANNOMEN/genome.fasta -I $sample.dupMarked.bam -O $sample.SplitNCigarReads.bam --verbosity ERROR && rm $sample.dupMarked.{bam,bai}
 
@@ -341,15 +339,11 @@ time perl \$ANNOMEN/vcf.filter.pl $sample.raw.snps.indels.vcf.gz QD 'QD < 2' \\
 	| perl \$ANNOMEN/vcf.filter.pl -g - GQ 'GQ < 7' \\
 	| gzip > $sample.filtered.vcf.gz
 
-EOF
-		print $writer <<EOF;
 # Custom Perl script: variant annotation (RefSeq genes, tandem repeat)
 time perl \$ANNOMEN/leftalignIndel.pl $sample.filtered.vcf.gz \$ANNOMEN/genome.fasta | perl \$ANNOMEN/sort_by_reference.pl - \$ANNOMEN/genome.fasta 0 1 \\
 	| perl \$ANNOMEN/Annomen.pl - \$ANNOMEN/genome.fasta \$ANNOMEN/Annomen_table.txt \$ANNOMEN/refseq.transcript.fasta \$ANNOMEN/refseq.protein.fasta \\
 	| gzip > $sample.annotated.vcf.gz
 
-EOF
-		print $writer <<EOF;
 # Custom Perl script: generate variant tables
 time perl \$ANNOMEN/vcf.table.pl -c \$ANNOMEN/column.name.depth.dbSNP.txt $sample.annotated.vcf.gz > $sample.variant.txt
 
@@ -357,6 +351,25 @@ time table.filter.pl $sample.variant.txt 'dbSNP' 'eq' '' > $sample.variant.not_d
 
 time perl \$ANNOMEN/variant_type_count.pl -s $sample -H $sample.variant.txt > $sample.variant_type_count.txt
 time perl \$ANNOMEN/variant_type_count.pl -s $sample -H $sample.variant.not_dbSNP.txt > $sample.variant_type_count.not_dbSNP.txt
+
+EOF
+	}
+	if($countSpliceJunctionReads) {
+		print $writer <<EOF;
+time cat \$ANNOMEN/SpliceFisher/region_type.{forward,reverse}.txt | region.depth.pl -p $threads -S '$stranded' - $sample.genome.sorted.bam > $sample.region_type.depth.txt
+time for regionType in exon intron intergenic; do awk -F'\\t' -vOFS='\\t' -vregionType=\$regionType '(\$5 == regionType) {a += \$6 * (\$3 - \$2 + 1); b += \$3 - \$2 + 1} END {print regionType, a / b}' $sample.region_type.depth.txt; done > $sample.region_type.total_depth.txt
+
+EOF
+		print $writer <<EOF;
+time perl \$ANNOMEN/SpliceFisher/SpliceFisher_gene.pl -s '$stranded' \$ANNOMEN/SpliceFisher/exon.unique.txt $sample.genome.sorted.bam > $sample.gene.count.txt
+time perl \$ANNOMEN/SpliceFisher/SpliceFisher_exon.pl -s '$stranded' \$ANNOMEN/SpliceFisher/exon.unique.txt $sample.gene.count.txt $sample.genome.sorted.bam > $sample.exon.count.txt
+time perl \$ANNOMEN/SpliceFisher/SpliceFisher_intron.pl -s '$stranded' \$ANNOMEN/SpliceFisher/intron.unique.txt $sample.gene.count.txt $sample.genome.sorted.bam > $sample.intron.count.txt
+time perl \$ANNOMEN/SpliceFisher/SpliceFisher_exon_pair.pl -s '$stranded' \$ANNOMEN/SpliceFisher/exon_pair.txt $sample.genome.sorted.bam > $sample.exon_pair.count.txt
+
+EOF
+		print $writer <<EOF;
+time perl \$ANNOMEN/SpliceFisher/SpliceFisher_PSI.pl $sample.exon.count.txt > $sample.exon.PSI.txt
+time perl \$ANNOMEN/SpliceFisher/SpliceFisher_PSI.pl $sample.intron.count.txt > $sample.intron.PSI.txt
 
 EOF
 	}

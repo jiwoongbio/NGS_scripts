@@ -4,7 +4,7 @@ use strict;
 use warnings;
 local $SIG{__WARN__} = sub { die $_[0] };
 
-use List::Util qw(sum min all);
+use List::Util qw(sum min max all);
 use Getopt::Long qw(:config no_ignore_case);
 
 chomp(my $file = `readlink -f $0`);
@@ -41,7 +41,7 @@ while(my $line = <$reader>) {
 		print "$line\n";
 	} else {
 		if(@tokenListList && $tokenListList[0]->[0] ne $tokenList[0]) {
-			if(all {getIdentity(@$_) >= $minimumIdentity} grep {$ignoreUnmappedRead eq '' || ($_->[1] & 4) == 0} @tokenListList) {
+			if(all {$_ >= $minimumIdentity} getMaximumIdentityList(@tokenListList)) {
 				print join("\t", @$_), "\n" foreach(@tokenListList);
 			}
 			@tokenListList = ();
@@ -50,12 +50,19 @@ while(my $line = <$reader>) {
 	}
 }
 if(@tokenListList) {
-	if(all {getIdentity(@$_) >= $minimumIdentity} @tokenListList) {
+	if(all {$_ >= $minimumIdentity} getMaximumIdentityList(@tokenListList)) {
 		print join("\t", @$_), "\n" foreach(@tokenListList);
 	}
 	@tokenListList = ();
 }
 close($reader);
+
+sub getMaximumIdentityList {
+	my @tokenListList = @_;
+	my %readNumberIdentityListHash = ();
+	push(@{$readNumberIdentityListHash{($_->[1] & 192) / 64}}, getIdentity(@$_)) foreach(grep {$ignoreUnmappedRead eq '' || ($_->[1] & 4) == 0} @tokenListList);
+	return map {max(@{$readNumberIdentityListHash{$_}})} sort {$a <=> $b} keys %readNumberIdentityListHash;
+}
 
 sub getIdentity {
 	my %tokenHash = ();

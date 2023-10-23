@@ -10,6 +10,7 @@ GetOptions(
 	'q=i' => \(my $minimumMappingQuality = 0),
 	'f=i' => \(my $includeFlag = 0),
 	'F=i' => \(my $excludeFlag = 0),
+	'E' => \(my $noEmpty = ''),
 );
 my @samMandatoryColumnList = ('qname', 'flag', 'rname', 'pos', 'mapq', 'cigar', 'rnext', 'pnext', 'tlen', 'seq', 'qual');
 my ($samFile, @columnList) = @ARGV;
@@ -26,7 +27,9 @@ while(my $line = <$reader>) {
 	my @positionList = getPositionList(@tokenHash{'pos', 'cigar'});
 	@positionList = grep {$_ ne ''} @positionList;
 	@tokenHash{'chromosome', 'start', 'end', 'strand'} = ($tokenHash{'rname'}, @positionList[0, -1], (($tokenHash{'flag'} & 16) == 0 ? '+' : '-'));
-	print join("\t", map {defined($_) ? $_ : ''} @tokenHash{@columnList}), "\n";
+	my @tokenList = @tokenHash{@columnList};
+	next if($noEmpty && grep {!defined($_)} @tokenList);
+	print join("\t", map {defined($_) ? $_ : ''} @tokenList), "\n";
 }
 close($reader);
 

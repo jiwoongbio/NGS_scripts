@@ -15,7 +15,7 @@ GetOptions(
 if($help || scalar(@ARGV) == 0) {
 	die <<EOF;
 
-Usage:   $file [options] table.txt indexes key1 ... > table.line_extended.txt
+Usage:   $file [options] table.txt indexes key1 [...] > table.line_extended.txt
 
 Options: -h       display this help message
 

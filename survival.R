@@ -20,6 +20,9 @@ colnames(t)[1] <- "group"
 t$number <- table(d$group)[t[, 1]]
 t <- t[, c("group", "number", colnames(t)[!(colnames(t) %in% c("group", "number"))])]
 
+hr <- coxph(Surv(time, event) ~ group, data = d) %>% finalfit::fit2df()
+hr <- hr$HR
+
 pdf(file = args[2], width = as.numeric(args[3]), height = as.numeric(args[4]))
-grid.arrange(p$plot, tableGrob(t, rows = NULL), nrow = 2, heights = c(4, 1))
+grid.arrange(p$plot, tableGrob(t, rows = NULL), tableGrob(paste0("HR = ", hr), rows = NULL), nrow = 3, heights = c(4, 1, 1))
 dev.off()

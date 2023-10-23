@@ -6,11 +6,27 @@ local $SIG{__WARN__} = sub { die $_[0] };
 
 use Getopt::Long qw(:config no_ignore_case);
 
+chomp(my $file = `readlink -f $0`);
+my $directory = $1 if($file =~ s/(^.*\/)//);
+
 GetOptions(
+	'h' => \(my $help = ''),
 	'i' => \(my $ignoreCase = ''),
 	'm' => \(my $matchedOnly = ''),
 	'o' => \(my $once = ''),
 );
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage:   $file [options] table.txt key_indexes table1.txt key_indexes1 value_indexes1 [...] > table.column_added.txt
+
+Options: -h       display this help message
+         -i       ignore case
+         -m       matched only
+         -o       once
+
+EOF
+}
 my ($tableFile, $keyIndexes, @additionTableFileKeyValueIndexesList) = @ARGV;
 die "$tableFile is not readable." unless($tableFile eq '-' || $tableFile =~ /\|\s*$/ || -r $tableFile);
 die unless(scalar(@additionTableFileKeyValueIndexesList) % 3 == 0);

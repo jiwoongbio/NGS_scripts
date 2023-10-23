@@ -6,12 +6,28 @@ local $SIG{__WARN__} = sub { die $_[0] };
 
 use Getopt::Long qw(:config no_ignore_case);
 
+chomp(my $file = `readlink -f $0`);
+my $directory = $1 if($file =~ s/(^.*\/)//);
+
 my @excludeIndexesList = ();
 GetOptions(
+	'h' => \(my $help = ''),
 	'e=s' => \@excludeIndexesList,
 	'c' => \(my $useColumnInsteadOfIndexes = ''),
 	'f=s' => \(my $columnFile = ''),
 );
+if($help || scalar(@ARGV) == 0) {
+	die <<EOF;
+
+Usage:   $file [options] table.txt indexes [...] > table.column_rearranged.txt
+
+Options: -h       display this help message
+         -e STR   exclude indexes
+         -c       use column instead of indexes
+         -f       column file
+
+EOF
+}
 my ($tableFile, @indexesList) = @ARGV;
 if($columnFile ne '') {
 	open(my $reader, $columnFile);

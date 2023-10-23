@@ -1,3 +1,26 @@
+# NGS_scripts
+
+Scripts for analyzing Next-Generation Sequencing data
+
+
+## Requirements
+
+1. Perl - https://www.perl.org
+2. R - http://www.r-project.org
+3. Perl modules "Bio::DB::Fasta", "Bio::DB::Taxonomy" - https://bioperl.org
+4. wget - https://www.gnu.org/software/wget/
+5. Linux commands: sort, gzip, ...
+
+
+## Install
+
+If you already have Git (https://git-scm.com) installed, you can get the latest development version using Git.
+
+```
+git clone https://github.com/jiwoongbio/NGS_scripts.git
+```
+
+
 ## Human RNA-seq data analysis
 
 1. Setting reference genome data
@@ -21,12 +44,12 @@ cd Annomen.hg38
 # Generate genome annotation table
 time ./Annomen_table.hg38.sh
 
+#PICARD=where/is/picard.jar
+time java -jar $PICARD CreateSequenceDictionary REFERENCE=genome.fasta
+
 # Generate genome index
 time bwa index genome.fasta
 time samtools faidx genome.fasta
-
-#PICARD=where/is/picard.jar
-time java -jar $PICARD CreateSequenceDictionary REFERENCE=genome.fasta
 
 # Calculate genome sequence lengths
 time fasta.length.pl genome.fasta > genome.length.txt
@@ -56,18 +79,42 @@ time gzip -dc */*_genomic.gtf.gz | grep -v '^#' | table.substitute_value.pl -i 0
 # Generate STAR index
 rm -rf STAR; mkdir STAR; time STAR --runThreadN 16 --runMode genomeGenerate --genomeDir STAR --genomeFastaFiles genome.fasta --sjdbGTFfile genome.gtf
 
+# SpliceFisher
+time git clone https://github.com/jiwoongbio/SpliceFisher.git
+rm SpliceFisher/*.bam
+rm SpliceFisher/*.txt
+
+time (cd SpliceFisher; ./prepare.sh ../genome.gtf)
+time (cd SpliceFisher; perl region_type.pl ../genome.gtf > region_type.txt)
+time (cd SpliceFisher; perl region_type.pl -S forward ../genome.gtf | awk -F'\t' -vOFS='\t' '{print $1, $2, $3, "+", $4}' > region_type.forward.txt)
+time (cd SpliceFisher; perl region_type.pl -S reverse ../genome.gtf | awk -F'\t' -vOFS='\t' '{print $1, $2, $3, "-", $4}' > region_type.reverse.txt)
+
+# Generate gene + transcript index
+time cat genome.fasta transcript.fasta > genome_transcript.fasta
+time bwa index genome_transcript.fasta
+time samtools faidx genome_transcript.fasta
+
 # List gene / gene ID pairs
 time perl gff_extract.pl -E */*_genomic.gff.gz gene Dbxref | table.delimitLines.pl - 1 | sed -n 's/GeneID://p' | sort -u > gene.gene_id.txt
 
 # List gene / representative transcript pairs
 time perl gff_extract.pl -E */*_genomic.gff.gz transcript_id tag | awk -F'\t' '($2 == "MANE Select")' | table.search.pl - 0 gene.transcript.txt 1 > gene.transcript.MANE_Select.txt
 time perl gff_extract.pl -E */*_genomic.gff.gz transcript_id tag | awk -F'\t' '($2 == "RefSeq Select")' | table.search.pl - 0 gene.transcript.txt 1 > gene.transcript.RefSeq_Select.txt
-time table.search.pl -v gene.transcript.MANE_Select.txt 0,1 gene.transcript.RefSeq_Select.txt 0,1 | cat gene.transcript.MANE_Select.txt - > gene.transcript.select.txt
 
-# dbSNP
+time perl gff_extract.pl -E */*_genomic.gff.gz transcript_id tag | awk -F'\t' '($2 == "MANE Plus Clinical")' | table.search.pl - 0 gene.transcript.txt 1 > gene.transcript.MANE_Plus_Clinical.txt
+time perl gff_extract.pl -E */*_genomic.gff.gz transcript_id tag | awk -F'\t' '($2 == "RefSeq Plus Clinical")' | table.search.pl - 0 gene.transcript.txt 1 > gene.transcript.RefSeq_Plus_Clinical.txt
+
+time table.search.pl -v gene.transcript.MANE_Select.txt 0,1 gene.transcript.RefSeq_Select.txt 0,1 gene.transcript.MANE_Plus_Clinical.txt 0,1 gene.transcript.RefSeq_Plus_Clinical.txt 0,1 | cat gene.transcript.MANE_Select.txt - > gene.transcript.select.txt
+
+# dbSNP 155
 time wget --no-verbose --no-check-certificate https://ftp.ncbi.nlm.nih.gov/snp/archive/b155/VCF/GCF_000001405.39.gz
 time gzip -dc GCF_000001405.39.gz | grep -v '^#' | table.substitute_value.pl -i 0 -f chromosome.UCSC.txt -o - | table.search.pl genome.length.txt 0 - 0 | bash -c "cat <(gzip -dc GCF_000001405.39.gz | head -n1000 | grep '^#') -" | perl leftalignIndel.pl - genome.fasta | perl sort_by_reference.pl - genome.fasta 0 1 | bgzip > snp_b155.vcf.gz
 time tabix --preset vcf snp_b155.vcf.gz
+
+# dbSNP 156
+time wget --no-verbose --no-check-certificate https://ftp.ncbi.nlm.nih.gov/snp/archive/b156/VCF/GCF_000001405.40.gz
+time gzip -dc GCF_000001405.40.gz | grep -v '^#' | table.substitute_value.pl -i 0 -f chromosome.UCSC.txt -o - | table.search.pl genome.length.txt 0 - 0 | bash -c "cat <(gzip -dc GCF_000001405.40.gz | head -n1000 | grep '^#') -" | perl leftalignIndel.pl - genome.fasta | perl sort_by_reference.pl - genome.fasta 0 1 | bgzip > snp_b156.vcf.gz
+time tabix --preset vcf snp_b156.vcf.gz
 ```
 
 2. Analyzing a RNA-seq sample

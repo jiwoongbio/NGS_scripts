@@ -24,6 +24,8 @@ GetOptions(
 	'maxdate=s' => \(my $maxdate = ''),
 	'E' => \(my $downloadFromEBI = ''),
 	'x' => \(my $experimentInsteadOfSample = ''),
+	'm' => \(my $doNotMerge = ''),
+	'F' => \(my $origfmt = ''),
 );
 if($help || scalar(@ARGV) == 0) {
 	die <<EOF;
@@ -31,11 +33,15 @@ if($help || scalar(@ARGV) == 0) {
 Usage:   $file [options] SRA_search_term
 
 Options: -h       display this help message
-         -p INT   threads [$threads]
+         -t DIR   directory for temporary files [\$TMPDIR or /tmp]
+         -p INT   number of threads [$threads]
          -e       term is encoded
          -mindate STR   limit search by minimum date
          -maxdate STR   limit search by maximum date
          -E       download from EBI
+         -x       experiment instead of sample
+         -m       do not merge
+         -F       Defline contains only original sequence name
 
 EOF
 }
@@ -146,24 +152,30 @@ sub download {
 		}
 	} else {
 		foreach my $run (@runList) {
-			system("cd $layout/$sample; fastq-dump --gzip --split-files --log-level err $run");
+			if($origfmt) {
+				system("cd $layout/$sample; fastq-dump --gzip --split-files --log-level err --origfmt $run");
+			} else {
+				system("cd $layout/$sample; fastq-dump --gzip --split-files --log-level err $run");
+			}
 			system("rm -f ~/ncbi/public/sra/$run ~/ncbi/public/sra/$run.*");
 		}
 	}
-	if($layout eq 'SINGLE') {
-		my @fileList = map {"$layout/$sample/$_\_1.fastq.gz"} @runList;
-		system("for file in @fileList; do gzip -dc \$file; done | gzip > $layout/$sample/$sample.1.fastq.gz");
-		system("rm @fileList");
-	}
-	if($layout eq 'PAIRED') {
-		my @fileList = map {"$layout/$sample/$_\_1.fastq.gz"} @runList;
-		system("for file in @fileList; do gzip -dc \$file; done | gzip > $layout/$sample/$sample.1.fastq.gz");
-		system("rm @fileList");
-	}
-	if($layout eq 'PAIRED') {
-		my @fileList = map {"$layout/$sample/$_\_2.fastq.gz"} @runList;
-		system("for file in @fileList; do gzip -dc \$file; done | gzip > $layout/$sample/$sample.2.fastq.gz");
-		system("rm @fileList");
+	if($doNotMerge eq '') {
+		if($layout eq 'SINGLE') {
+			my @fileList = map {"$layout/$sample/$_\_1.fastq.gz"} @runList;
+			system("for file in @fileList; do gzip -dc \$file; done | gzip > $layout/$sample/$sample.1.fastq.gz");
+			system("rm @fileList");
+		}
+		if($layout eq 'PAIRED') {
+			my @fileList = map {"$layout/$sample/$_\_1.fastq.gz"} @runList;
+			system("for file in @fileList; do gzip -dc \$file; done | gzip > $layout/$sample/$sample.1.fastq.gz");
+			system("rm @fileList");
+		}
+		if($layout eq 'PAIRED') {
+			my @fileList = map {"$layout/$sample/$_\_2.fastq.gz"} @runList;
+			system("for file in @fileList; do gzip -dc \$file; done | gzip > $layout/$sample/$sample.2.fastq.gz");
+			system("rm @fileList");
+		}
 	}
 }
 
